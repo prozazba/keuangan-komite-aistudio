@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global safety net - Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- VALIDATION HELPERS ---
+    
+    function isValidStudent(data) {
+      return data.id is string && data.id.size() <= 128 
+          && data.studentId is string && data.studentId.size() <= 64
+          && data.name is string && data.name.size() <= 128
+          && data.classId is string && data.classId.size() <= 64
+          && data.status in ["active", "inactive"];
+    }
+
+    function isValidTransaction(data) {
+      return data.id is string && data.id.size() <= 128
+          && data.date is string && data.date.size() <= 32
+          && data.type in ["income", "expense"]
+          && data.category is string && data.category.size() <= 128
+          && data.amount is number && data.amount > 0
+          && data.description is string && data.description.size() <= 1000
+          && data.paymentMethod in ["Cash", "Transfer Bank", "E-Wallet"]
+          && data.recordedBy is string && data.recordedBy.size() <= 128;
+    }
+
+    function isValidEvent(data) {
+      return data.id is string && data.id.size() <= 128
+          && data.title is string && data.title.size() <= 200
+          && data.date is string && data.date.size() <= 32
+          && data.budgetTarget is number && data.budgetTarget >= 0
+          && data.status in ["planning", "active", "completed", "cancelled"];
+    }
+
+    function isValidStudentBill(data) {
+      return data.id is string && data.id.size() <= 128
+          && data.studentId is string && data.studentId.size() <= 128
+          && data.studentName is string && data.studentName.size() <= 128
+          && data.studentClass is string && data.studentClass.size() <= 64
+          && data.period is string && data.period.size() <= 32
+          && data.amountRequired is number && data.amountRequired >= 0
+          && data.amountPaid is number && data.amountPaid >= 0
+          && data.status in ["unpaid", "partially_paid", "paid"]
+          && data.dueDate is string && data.dueDate.size() <= 32;
+    }
+
+    // --- SECURE MATCH BLOCKS ---
+
+    // 1. STUDENTS COLLECTION
+    match /students/{studentId} {
+      allow read: if isSignedIn();
+      allow create, write: if isSignedIn() && isValidId(studentId) && isValidStudent(incoming());
+      allow update: if isSignedIn() && isValidId(studentId) && isValidStudent(incoming()) 
+          && incoming().id == existing().id; // Immortality of ID
+      allow delete: if isSignedIn();
+    }
+
+    // 2. TRANSACTIONS COLLECTION
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn();
+      allow create, write: if isSignedIn() && isValidId(transactionId) && isValidTransaction(incoming());
+      allow update: if isSignedIn() && isValidId(transactionId) && isValidTransaction(incoming())
+          && incoming().id == existing().id // Immutable ID
+          && incoming().type == existing().type; // Immutable direction (income vs expense)
+      allow delete: if isSignedIn();
+    }
+
+    // 3. EVENTS COLLECTION
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create, write: if isSignedIn() && isValidId(eventId) && isValidEvent(incoming());
+      allow update: if isSignedIn() && isValidId(eventId) && isValidEvent(incoming())
+          && incoming().id == existing().id; // Immutable ID
+      allow delete: if isSignedIn();
+    }
+
+    // 4. STUDENT BILLS COLLECTION
+    match /student_bills/{billId} {
+      allow read: if isSignedIn();
+      allow create, write: if isSignedIn() && isValidId(billId) && isValidStudentBill(incoming());
+      allow update: if isSignedIn() && isValidId(billId) && isValidStudentBill(incoming())
+          && incoming().id == existing().id
+          && incoming().studentId == existing().studentId; // Immutable link
+      allow delete: if isSignedIn();
+    }
+
+    // 5. CLASSES COLLECTION
+    match /classes/{classId} {
+      allow read: if isSignedIn();
+      allow create, write: if isSignedIn() && isValidId(classId);
+      allow update, delete: if isSignedIn();
+    }
+  }
+}

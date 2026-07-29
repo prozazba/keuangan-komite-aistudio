@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Custom styles for official printable report layouts */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Hide all buttons, navigation sidebars, custom themes, and toggles */
+  .no-print, 
+  nav, 
+  header, 
+  aside, 
+  button, 
+  input, 
+  select, 
+  form,
+  .tabs-container {
+    display: none !important;
+  }
+
+  /* Expand printable container to full-width without borders or shadow */
+  .print-report-container {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    font-size: 11pt !important;
+    color: #000000 !important;
+  }
+
+  tr, td, th {
+    page-break-inside: avoid !important;
+  }
+}
