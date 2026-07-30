@@ -54,29 +54,29 @@ export default function NotificationsSim({ bills }: NotificationsSimProps) {
   const getWhatsAppMessage = (bill: StudentBill) => {
     return `Yth. Bapak/Ibu Wali Murid dari *${bill.studentName}* (Kelas ${bill.studentClass}),
 
-Kami dari *Komite Sekolah Mandiri* menginfokan bahwa terdapat kewajiban administrasi iuran komite sekolah yang belum terselesaikan:
+Salam hangat dari *Organisasi Komite Sekolah*. Menginfokan perihal kontribusi iuran gotong royong Komite Sekolah untuk mendukung program kerja independen dan pemenuhan sarana belajar siswa:
 
 *Periode:* ${bill.period}
-*Tagihan:* ${formatIDR(bill.amountRequired)}
-*Telah Dibayar:* ${formatIDR(bill.amountPaid)}
-*Sisa Tunggakan:* *${formatIDR(remainingDues(bill))}*
-*Jatuh Tempo:* ${bill.dueDate}
+*Jumlah Iuran:* ${formatIDR(bill.amountRequired)}
+*Telah Disetorkan:* ${formatIDR(bill.amountPaid)}
+*Sisa Kekurangan:* *${formatIDR(remainingDues(bill))}*
+*Target Penyerahan:* ${bill.dueDate}
 
-Pembayaran dapat disalurkan langsung via transfer ke rekening resmi Komite Sekolah:
+Dukungan iuran ini disalurkan langsung via transfer ke rekening resmi Komite Sekolah:
 *Bank Pembangunan Daerah (BPD)*
 No. Rekening: *109-28-00382*
-a.n. *Komite Sekolah Mandiri*
+a.n. *Komite Sekolah*
 
-_Mohon kirimkan bukti bayar ke WhatsApp ini setelah melakukan transaksi._
+_Mohon konfirmasi & kirimkan bukti setoran ke nomor ini setelah bertransaksi._
 
-Terima kasih atas partisipasi aktif Bapak/Ibu sekalian dalam mendukung fasilitasi pendidikan anak didik kita.
+Terima kasih atas partisipasi aktif Bapak/Ibu sekalian dalam mendukung program Komite dan perlindungan hak-hak siswa.
 
-Salam hangat,
-*Bendahara Komite Sekolah*`;
+Salam hormat,
+*Pengurus Komite Sekolah*`;
   };
 
   const getEmailSubject = (bill: StudentBill) => {
-    return `[PENGINGAT] Tagihan Iuran Komite Sekolah ${bill.period} - ${bill.studentName}`;
+    return `[PEMBERITAHUAN] Iuran Gotong Royong Komite Sekolah ${bill.period} - ${bill.studentName}`;
   };
 
   const getEmailMessage = (bill: StudentBill) => {
@@ -84,32 +84,30 @@ Salam hangat,
 
 Kami mendoakan Bapak/Ibu Wali Murid dalam keadaan sehat selalu.
 
-Menindaklanjuti program kerja tahunan Komite Sekolah Mandiri, kami menginformasikan perihal status iuran bulanan perkembangan fasilitas kelas untuk putra/putri Anda:
+Menindaklanjuti program kerja independen Organisasi Komite Sekolah, kami menginformasikan perihal status iuran gotong royong dan kontribusi sarana belajar putra/putri Anda:
 
 Detail Siswa:
 Nama Siswa     : ${bill.studentName}
 Kelas          : ${bill.studentClass}
 Nama Wali      : ${bill.parentsName}
 
-Detail Tagihan:
-Uraian Tagihan : Iuran Komite Sekolah
+Detail Iuran Komite:
+Uraian         : Iuran Gotong Royong Komite Sekolah
 Periode        : ${bill.period}
 Jumlah Wajib   : ${formatIDR(bill.amountRequired)}
-Telah Dibayar  : ${formatIDR(bill.amountPaid)}
-SISA TAGIHAN   : ${formatIDR(remainingDues(bill))} (Harap diselesaikan sebelum ${bill.dueDate})
+Telah Disetor  : ${formatIDR(bill.amountPaid)}
+SISA KEKURANGAN: ${formatIDR(remainingDues(bill))} (Diharapkan sebelum ${bill.dueDate})
 
-Metode Pembayaran:
-Anda dapat melakukan transfer bank ke rekening penampungan Komite Sekolah berikut:
-- Bank: Bank Pembangunan Daerah (BPD)
-- No. Rekening: 109-28-00382
-- Atas Nama: Komite Sekolah Mandiri
+Metode Penyaluran:
+Penyaluran dapat dilakukan melalui transfer ke rekening resmi Komite Sekolah:
+- Bank         : Bank Pembangunan Daerah (BPD)
+- No. Rekening : 109-28-00382
+- Atas Nama    : Komite Sekolah
 
-Pemberitahuan ini dikirim otomatis oleh sistem informasi Keuangan Komite. Jika Bapak/Ibu telah melunasi tagihan ini, silakan abaikan pesan ini atau unggah bukti bayar Anda ke admin.
-
-Atas segala dukungan dan kerja samanya, kami ucapkan terima kasih.
+Pemberitahuan ini disampaikan secara resmi oleh sistem informasi Komite Sekolah. Terima kasih atas kerja sama dan sinergi Bapak/Ibu demi kenyamanan kegiatan belajar mengajar (KBM) siswa.
 
 Hormat kami,
-Pengurus Komite Sekolah Mandiri`;
+Pengurus Komite Sekolah`;
   };
 
   // Simulate sending a single notification

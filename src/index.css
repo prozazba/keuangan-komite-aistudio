@@ -2,6 +2,49 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  /* Custom Brand Palette */
+  --color-molten-lava: #780000;
+  --color-brick-red: #c1121f;
+  --color-papaya-whip: #fdf0d5;
+  --color-deep-space-blue: #003049;
+  --color-steel-blue: #669bbc;
+}
+
+@layer utilities {
+  /* Soft Gradient Background Utilities */
+  .bg-soft-canvas {
+    background: linear-gradient(135deg, #fdf0d5 0%, #f7fafc 40%, #eef5f9 100%);
+  }
+
+  .bg-soft-card {
+    background: linear-gradient(145deg, #ffffff 0%, #fdf0d5 100%);
+  }
+
+  .bg-soft-card-blue {
+    background: linear-gradient(145deg, #f7fafc 0%, #e6f0f6 100%);
+  }
+
+  .bg-soft-card-red {
+    background: linear-gradient(145deg, #fff7f7 0%, #fdf0d5 100%);
+  }
+
+  .bg-header-gradient {
+    background: linear-gradient(135deg, #003049 0%, #00456a 50%, #669bbc 100%);
+  }
+
+  .bg-primary-btn-gradient {
+    background: linear-gradient(135deg, #003049 0%, #669bbc 100%);
+  }
+
+  .bg-accent-red-gradient {
+    background: linear-gradient(135deg, #780000 0%, #c1121f 100%);
+  }
+
+  .bg-warm-badge {
+    background-color: #fdf0d5;
+    color: #780000;
+  }
 }
 
 /* Custom styles for official printable report layouts */
@@ -41,3 +84,4 @@
     page-break-inside: avoid !important;
   }
 }
+

@@ -15,9 +15,18 @@ interface CashFlowTrackerProps {
   events: Event[];
   adminEmail: string;
   userRole?: 'admin' | 'operator';
+  selectedAcademicYear?: string;
 }
 
-export default function CashFlowTracker({ transactions, students, bills, events, adminEmail, userRole }: CashFlowTrackerProps) {
+export default function CashFlowTracker({ 
+  transactions, 
+  students, 
+  bills, 
+  events, 
+  adminEmail, 
+  userRole,
+  selectedAcademicYear = '2025/2026'
+}: CashFlowTrackerProps) {
   // UI State
   const [showAddForm, setShowAddForm] = useState(false);
   
@@ -307,63 +316,63 @@ export default function CashFlowTracker({ transactions, students, bills, events,
       {/* 3-Bento Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
         {/* Total Incoming */}
-        <div className="bg-white border border-slate-100/80 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
+        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-3xl p-5 flex items-center justify-between shadow-xs">
           <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Total Pendapatan Komite</span>
-            <span className="text-xl font-bold text-emerald-600 block">{formatIDR(aggregateStats.totalIncome)}</span>
-            <p className="text-[11px] text-slate-400">Dari iuran wali murid & sumbangan</p>
+            <span className="text-[10px] font-extrabold text-emerald-800/80 uppercase tracking-widest block">Total Pendapatan Komite</span>
+            <span className="text-xl font-black text-emerald-700 block font-mono">{formatIDR(aggregateStats.totalIncome)}</span>
+            <p className="text-[11px] text-slate-500 font-medium">Dari iuran wali murid & sumbangan</p>
           </div>
-          <div className="h-10 w-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
+          <div className="h-11 w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shadow-2xs">
             <ArrowDownLeft className="h-5 w-5" />
           </div>
         </div>
 
         {/* Total Outgoing */}
-        <div className="bg-white border border-slate-100/80 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
+        <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] rounded-3xl p-5 flex items-center justify-between shadow-xs">
           <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Total Pengeluaran</span>
-            <span className="text-xl font-bold text-rose-600 block">{formatIDR(aggregateStats.totalExpense)}</span>
-            <p className="text-[11px] text-slate-400">Pembiayaan fasilitasi & acara</p>
+            <span className="text-[10px] font-extrabold text-[#780000]/80 uppercase tracking-widest block">Total Pengeluaran</span>
+            <span className="text-xl font-black text-[#c1121f] block font-mono">{formatIDR(aggregateStats.totalExpense)}</span>
+            <p className="text-[11px] text-slate-500 font-medium">Pembiayaan fasilitasi & acara</p>
           </div>
-          <div className="h-10 w-10 bg-rose-50 rounded-lg flex items-center justify-center text-rose-600">
+          <div className="h-11 w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shadow-2xs">
             <ArrowUpRight className="h-5 w-5" />
           </div>
         </div>
 
         {/* Balance Current */}
-        <div className="bg-white border border-slate-100/80 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
+        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-3xl p-5 flex items-center justify-between shadow-xs">
           <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Sisa Saldo Kas Komite</span>
-            <span className="text-xl font-bold text-indigo-600 block">{formatIDR(aggregateStats.netBalance)}</span>
-            <p className="text-[11px] text-indigo-600/80 font-medium whitespace-nowrap">Buku Kas Transparan & Aktif</p>
+            <span className="text-[10px] font-extrabold text-[#003049]/70 uppercase tracking-widest block">Sisa Saldo Kas Komite</span>
+            <span className="text-xl font-black text-[#003049] block font-mono">{formatIDR(aggregateStats.netBalance)}</span>
+            <p className="text-[11px] text-[#003049]/80 font-bold whitespace-nowrap">Buku Kas Transparan & Aktif</p>
           </div>
-          <div className="h-10 w-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+          <div className="h-11 w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shadow-2xs">
             <CreditCard className="h-5 w-5" />
           </div>
         </div>
       </div>
 
       {/* Main Bar actions */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/90 backdrop-blur-xs p-6 rounded-3xl shadow-xs">
         <div className="text-left">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Layers className="h-5 w-5 text-indigo-600" />
-            Buku Transaksi Cash Flow
+          <h2 className="text-lg font-black text-[#003049] tracking-tight flex items-center gap-2">
+            <Layers className="h-5 w-5 text-[#003049]" />
+            Buku Transaksi Kas Komite Sekolah
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Catat iuran siswa & pengeluaran komite secara akuntabel. Setiap transaksi terekam transparan beserta bukti metodenya.
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Catat iuran gotong royong, sumbangan, serta pengeluaran program kerja Komite Sekolah secara transparan & akuntabel.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-650 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white"
+            className="flex items-center gap-2 border-none bg-slate-100 hover:bg-slate-200 text-[#003049] px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
           >
             <Download className="h-4 w-4" />
             Ekspor CSV
           </button>
           {userRole === 'operator' ? (
-            <div className="text-xs bg-amber-50 text-amber-800 border border-amber-200 py-2 px-3.5 rounded-xl font-bold flex items-center gap-1.5 shadow-2xs">
+            <div className="text-xs bg-amber-50 text-amber-800 py-2 px-3.5 rounded-2xl font-bold flex items-center gap-1.5 shadow-2xs">
               <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
               <span>Akses Terbatas: Sesi Operator</span>
             </div>
@@ -371,7 +380,7 @@ export default function CashFlowTracker({ transactions, students, bills, events,
             <button
               id="btn-add-transaction"
               onClick={() => { resetForm(); setShowAddForm(!showAddForm); }}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-xs cursor-pointer"
+              className="flex items-center gap-2 bg-gradient-to-r from-[#003049] to-[#669bbc] text-white px-4 py-2.5 rounded-2xl font-bold text-xs transition-all shadow-xs cursor-pointer hover:opacity-95"
             >
               {showAddForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {showAddForm ? 'Batal' : 'Catat Transaksi Baru'}

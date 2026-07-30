@@ -24,6 +24,7 @@ import CashFlowTracker from './components/CashFlowTracker';
 import EventManager from './components/EventManager';
 import NotificationsSim from './components/NotificationsSim';
 import Reports from './components/Reports';
+import ClassManager from './components/ClassManager';
 
 // Icons
 import { 
@@ -110,11 +111,18 @@ export default function App() {
   };
 
   // UI Active Navigation Tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'students' | 'iuran' | 'cashflow' | 'events' | 'notifications' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'students' | 'iuran' | 'cashflow' | 'events' | 'notifications' | 'reports'>('dashboard');
 
   // Static list of classes fallback
   const classesFallback = ['Kelas 7-A', 'Kelas 7-B', 'Kelas 8-A', 'Kelas 8-B', 'Kelas 9-A', 'Kelas 9-B', 'Kelas 9-C'];
-  const [dynamicClasses, setDynamicClasses] = useState<string[]>(classesFallback);
+  const [dynamicClasses, setDynamicClasses] = useState<string[]>(() => {
+    const saved = localStorage.getItem('dynamicClasses');
+    return saved ? JSON.parse(saved) : classesFallback;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dynamicClasses', JSON.stringify(dynamicClasses));
+  }, [dynamicClasses]);
 
   // 1. Listen for Authentication Changes
   useEffect(() => {
@@ -190,14 +198,10 @@ export default function App() {
     const unClasses = onSnapshot(collection(db, 'classes'), (snap) => {
       if (!snap.empty) {
         const items = snap.docs.map(doc => doc.id);
-        const blended = Array.from(new Set([...classesFallback, ...items]));
-        setDynamicClasses(blended);
-      } else {
-        setDynamicClasses(classesFallback);
+        setDynamicClasses(items);
       }
     }, (err) => {
       console.warn("Classes sync issues:", err);
-      setDynamicClasses(classesFallback);
     });
 
     return () => {
@@ -300,9 +304,16 @@ export default function App() {
       });
     } catch (err) {
       console.error("Gagal mendaftarkan kelas baru ke Firestore:", err);
-      // Local fallback
-      setDynamicClasses(prev => Array.from(new Set([...prev, newClassName])));
     }
+    setDynamicClasses(prev => Array.from(new Set([...prev, newClassName])));
+  };
+
+  const handleEditClass = async (oldClassName: string, newClassName: string) => {
+    setDynamicClasses(prev => prev.map(c => c === oldClassName ? newClassName : c));
+  };
+
+  const handleDeleteClass = async (classNameToDelete: string) => {
+    setDynamicClasses(prev => prev.filter(c => c !== classNameToDelete));
   };
 
   // Handle Sign-Out
@@ -420,11 +431,11 @@ export default function App() {
                   <Landmark className="h-7 w-7" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Keuangan Komite</h1>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sekolah Mandiri Indonesia</p>
+                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Komite Sekolah</h1>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Organisasi Independen Pengawasan & Kemitraan Sekolah</p>
                 </div>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  Platform pembukuan iuran siswa, transparansi cash flow, pengelolaan budgeting rancangan anggaran kegiatan (RAB) serta pengingat otomatis bagi wali murid.
+                  Platform independen pengawasan kinerja KBM, transparansi iuran gotong royong, pengelolaan program kerja Komite, RAB kegiatan, serta pemenuhan hak-hak siswa.
                 </p>
               </div>
 
@@ -520,41 +531,53 @@ export default function App() {
         ) : (
           
           /* 2. CORE WORKSPACE APPLICATION */
-          <div key="core-app" className="flex-1 flex flex-col">
+          <div key="core-app" className="flex-1 flex flex-col bg-soft-canvas text-slate-900 min-h-screen">
             
             {/* STICKY WORKSPACE HEADER */}
-            <header className="bg-white border-b border-slate-200 text-slate-900 z-30 no-print">
+            <header className="bg-header-gradient text-white z-30 no-print shadow-md shadow-[#003049]/15">
               <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center justify-between">
                 
                 {/* Branding */}
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold">
+                  <div className="h-10 w-10 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center text-[#fdf0d5] font-bold shadow-xs">
                     <Landmark className="h-5 w-5" />
                   </div>
-                  <div>
-                    <h1 className="text-sm font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
-                      Keuangan Komite
-                      <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        NeonDb PostgreSQL
+                  <div className="text-left">
+                    <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-2">
+                      Komite Sekolah
+                      <span 
+                        className={`inline-flex items-center justify-center p-1 rounded-full transition-all ${
+                          isOfflineMode 
+                            ? 'bg-rose-500/20 text-rose-200' 
+                            : 'bg-emerald-400/20 text-emerald-200'
+                        }`}
+                        title={isOfflineMode ? 'Koneksi Database Terputus (Offline)' : 'Terkoneksi ke Database (Online)'}
+                      >
+                        <span 
+                          className={`h-2 w-2 rounded-full ${
+                            isOfflineMode 
+                              ? 'bg-rose-400' 
+                              : 'bg-emerald-400 animate-pulse'
+                          }`}
+                        />
                       </span>
                     </h1>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Sekolah Mandiri Indonesia</p>
+                    <p className="text-[9px] text-[#fdf0d5]/80 font-extrabold uppercase tracking-widest">Organisasi Independen Pengawasan & Kemitraan</p>
                   </div>
                 </div>
 
                 {/* Academic Year Switcher Dropdown */}
-                <div className="flex items-center gap-1.5 bg-slate-100/90 border border-slate-200 px-2.5 py-1.5 rounded-xl text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 shadow-2xs">
-                  <GraduationCap className="h-4 w-4 text-indigo-600 shrink-0" />
-                  <span className="hidden md:inline text-slate-500">Tahun Ajaran</span>
+                <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-md px-3 py-1.5 rounded-2xl text-[10px] font-bold text-[#fdf0d5] uppercase tracking-wider shrink-0 shadow-xs">
+                  <GraduationCap className="h-4 w-4 text-[#fdf0d5] shrink-0" />
+                  <span className="hidden md:inline text-white/80">Tahun Ajaran</span>
                   <select
                     id="select-academic-year"
                     value={selectedAcademicYear}
                     onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                    className="bg-transparent text-slate-900 border-none outline-none font-extrabold text-xs cursor-pointer focus:ring-0 uppercase py-0 pl-1 py-0.5"
+                    className="bg-transparent text-white border-none outline-none font-extrabold text-xs cursor-pointer focus:ring-0 uppercase py-0 pl-1"
                   >
                     {availableAcademicYears.map(yr => (
-                      <option key={yr} value={yr}>TA {yr}</option>
+                      <option key={yr} value={yr} className="text-slate-900">TA {yr}</option>
                     ))}
                   </select>
                   {userRole === 'admin' && (
@@ -562,24 +585,24 @@ export default function App() {
                       id="btn-add-academic-year"
                       onClick={handleAddAcademicYear}
                       title="Tambah Tahun Ajaran Baru"
-                      className="ml-1 text-slate-400 hover:text-indigo-600 font-bold transition-colors cursor-pointer"
+                      className="ml-1 text-white/80 hover:text-white font-bold transition-colors cursor-pointer"
                     >
-                      <Plus className="h-4 w-4 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 p-0.5 rounded-md transition-all shrink-0" />
+                      <Plus className="h-4 w-4 bg-white/20 hover:bg-white/30 text-white p-0.5 rounded-lg transition-all shrink-0" />
                     </button>
                   )}
                 </div>
 
                 {/* User Info & log out */}
                 <div className="flex items-center gap-4 text-xs font-semibold">
-                  <span className="text-slate-500 hidden sm:inline flex items-center gap-1.5">
-                    <span className="h-2 w-2 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
-                    Bendahara: <strong className="text-slate-900 font-bold">{getUserLabel()}</strong>
+                  <span className="text-white/80 hidden sm:inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 bg-emerald-400 rounded-full inline-block animate-pulse"></span>
+                    Bendahara: <strong className="text-white font-bold">{getUserLabel()}</strong>
                   </span>
                   
                   <button
                     id="btn-logout"
                     onClick={handleLogOut}
-                    className="flex items-center gap-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                     Keluar Sesi
@@ -590,98 +613,140 @@ export default function App() {
             </header>
 
             {/* MAIN APP CONTAINER */}
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-6 py-6 flex flex-col lg:flex-row gap-6">
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-6 py-6 flex flex-col lg:flex-row gap-6">
               
               {/* PRIMARY NAVIGATION PANELS (LEFT) */}
-              <aside className="lg:w-64 shrink-0 flex flex-col gap-2 no-print">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-3 pb-1 block">Menu Navigasi</span>
+              <aside className="w-full lg:w-64 shrink-0 flex flex-col gap-2 no-print">
+                <span className="text-[9px] font-extrabold text-[#003049]/70 uppercase tracking-widest pl-2 pb-1 block text-left">Menu Navigasi Utama</span>
                 
-                <nav className="space-y-1">
+                <nav className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:flex lg:flex-col gap-2">
                   {/* Tab Dashboard */}
                   <button
                     id="nav-dashboard"
                     onClick={() => setActiveTab('dashboard')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'dashboard' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
                   >
-                    <LayoutDashboard className="h-4 w-4" />
-                    Ringkasan Beranda
+                    <LayoutDashboard className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Ringkasan Utama</span>
+                  </button>
+
+                  {/* Tab Class Manager */}
+                  <button
+                    id="nav-classes"
+                    onClick={() => setActiveTab('classes')}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'classes' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
+                  >
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Pemetaan Kelas</span>
                   </button>
 
                   {/* Tab Student Manager */}
                   <button
                     id="nav-students"
                     onClick={() => setActiveTab('students')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'students' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'students' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
                   >
-                    <GraduationCap className="h-4 w-4" />
-                    Master Data Siswa
+                    <GraduationCap className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Database Siswa</span>
                   </button>
 
                   {/* Tab Student Bills Manager */}
                   <button
                     id="nav-iuran"
                     onClick={() => setActiveTab('iuran')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'iuran' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'iuran' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
                   >
-                    <ClipboardList className="h-4 w-4" />
-                    Kelola Iuran & SPP Siswa
+                    <ClipboardList className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Kelola Iuran</span>
                   </button>
 
                   {/* Tab Cashflow Ledger */}
                   <button
                     id="nav-cashflow"
                     onClick={() => setActiveTab('cashflow')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'cashflow' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'cashflow' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
                   >
-                    <Coins className="h-4 w-4" />
-                    Buku Kas (Arus Kas)
+                    <Coins className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Buku Kas Komite</span>
                   </button>
 
                   {/* Tab Events planner */}
                   <button
                     id="nav-events"
                     onClick={() => setActiveTab('events')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'events' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'events' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
                   >
-                    <Target className="h-4 w-4" />
-                    Program & RAB Acara
+                    <Target className="h-4 w-4 shrink-0" />
+                    <span className="truncate">RAB & Program</span>
                   </button>
 
                   {/* Tab Notifications */}
                   <button
                     id="nav-notifications"
                     onClick={() => setActiveTab('notifications')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'notifications' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'notifications' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
                   >
-                    <Bell className="h-4 w-4" />
-                    Layanan Notifikasi Wali
+                    <Bell className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Advokasi & WA</span>
                   </button>
 
                   {/* Tab Reports */}
                   <button
                     id="nav-reports"
                     onClick={() => setActiveTab('reports')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'reports' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+                    className={`w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activeTab === 'reports' 
+                        ? 'bg-primary-btn-gradient text-white shadow-md shadow-[#003049]/20' 
+                        : 'text-[#003049] bg-white/80 hover:bg-[#fdf0d5]/80 hover:text-[#780000] border border-slate-100/80'
+                    }`}
                   >
-                    <FileSpreadsheet className="h-4 w-4" />
-                    Laporan Cetak (PDF)
+                    <FileSpreadsheet className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Laporan LPJ</span>
                   </button>
                 </nav>
 
                 {/* DB seeder module panel */}
-                <div className="mt-8 border border-slate-200 bg-white rounded-2xl p-4.5 space-y-3 shadow-xs">
-                  <div className="flex items-start gap-2.5">
-                    <Sparkles className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="mt-4 lg:mt-6 bg-gradient-to-br from-white via-[#fdf0d5]/60 to-[#e6f0f6] rounded-3xl p-4 sm:p-5 space-y-3 shadow-xs">
+                  <div className="flex items-start gap-2.5 text-left">
+                    <Sparkles className="h-5 w-5 text-[#003049] shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
-                      <span className="text-xs font-bold text-slate-950 block">Isi Database Mandiri</span>
-                      <span className="text-[10px] text-slate-500 block leading-relaxed">
-                        Jika database Anda masih baru dan kosong, silakan memicu data percontohan siap saji.
+                      <span className="text-xs font-black text-[#003049] block">Database Mandiri</span>
+                      <span className="text-[10px] text-slate-500 block leading-relaxed font-medium">
+                        Jika database masih kosong, Anda dapat memicu data percontohan awal.
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={handleTriggerSeed}
-                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] py-2 px-3 rounded-lg border border-indigo-100 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full bg-gradient-to-r from-[#003049] to-[#669bbc] hover:opacity-95 text-white font-extrabold text-[10px] py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs min-h-[40px]"
                   >
                     Isi Data Percontohan
                   </button>
@@ -704,12 +769,16 @@ export default function App() {
                       <div className="space-y-6">
                         
                         {/* Welcome Bento Card */}
-                        <div className="bg-white border border-slate-100 text-slate-900 p-6 rounded-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs">
-                          <div className="space-y-1 z-10 max-w-xl text-left">
-                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">Dashboard Bendahara</span>
-                            <h2 className="text-xl font-bold tracking-tight text-slate-900 block">Selamat Datang di Portal Keuangan Komite!</h2>
-                            <p className="text-xs text-slate-500 leading-relaxed">
-                              Pantau mutasi pemasukan iuran siswa jajaran Kelas 7, 8, & 9 serta pengeluaran operasional sekolah. Sinkronisasi multi-admin real-time aktif.
+                        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/40 to-[#eef5f9] text-slate-900 p-6 sm:p-7 rounded-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm text-left">
+                          <div className="space-y-1 z-10 max-w-xl">
+                            <span className="text-[10px] font-extrabold text-[#780000] uppercase tracking-wider block bg-[#fdf0d5] px-2.5 py-0.5 rounded-full w-max">
+                              Dashboard Pengawasan Komite
+                            </span>
+                            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[#003049] block pt-1">
+                              Portal Organisasi Komite Sekolah
+                            </h2>
+                            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                              Mitra independen sekolah: transparansi, akuntabilitas, dan advokasi siswa.
                             </p>
                           </div>
                           
@@ -717,58 +786,58 @@ export default function App() {
                             {students.length === 0 && (
                               <button
                                 onClick={handleTriggerSeed}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
+                                className="bg-gradient-to-r from-[#003049] to-[#669bbc] hover:opacity-95 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#003049]/15 cursor-pointer"
                               >
                                 Muat Contoh Data Awal
                               </button>
                             )}
                           </div>
                           {/* ambient background blur */}
-                          <div className="absolute right-0 bottom-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl"></div>
+                          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[#669bbc]/15 rounded-full blur-3xl pointer-events-none"></div>
                         </div>
 
                         {/* Top stat indicator bars */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                           {/* Saldo Kas */}
-                          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs flex items-center justify-between">
+                          <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
                             <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Sisa Saldo Kas</span>
-                              <span className="text-lg font-bold text-slate-900 block">{formatIDR(systemDashboardStats.netCash)}</span>
+                              <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest block">Sisa Saldo Kas</span>
+                              <span className="text-lg font-black text-[#003049] block">{formatIDR(systemDashboardStats.netCash)}</span>
                             </div>
-                            <div className="h-10 w-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                            <div className="h-11 w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shadow-2xs">
                               <Coins className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Pemasukan */}
-                          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs flex items-center justify-between">
+                          <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
                             <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Total Penerimaan</span>
-                              <span className="text-lg font-bold text-emerald-600 block">+{formatIDR(systemDashboardStats.totalIncome)}</span>
+                              <span className="text-[9px] text-emerald-800/80 font-extrabold uppercase tracking-widest block">Total Penerimaan</span>
+                              <span className="text-lg font-black text-emerald-700 block">+{formatIDR(systemDashboardStats.totalIncome)}</span>
                             </div>
-                            <div className="h-10 w-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
+                            <div className="h-11 w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shadow-2xs">
                               <ArrowDownLeft className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Pengeluaran */}
-                          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs flex items-center justify-between">
+                          <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
                             <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Total Pengeluaran</span>
-                              <span className="text-lg font-bold text-rose-600 block">-{formatIDR(systemDashboardStats.totalExpense)}</span>
+                              <span className="text-[9px] text-[#780000]/80 font-extrabold uppercase tracking-widest block">Total Pengeluaran</span>
+                              <span className="text-lg font-black text-[#c1121f] block">-{formatIDR(systemDashboardStats.totalExpense)}</span>
                             </div>
-                            <div className="h-10 w-10 bg-rose-50 rounded-lg flex items-center justify-center text-rose-600">
+                            <div className="h-11 w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shadow-2xs">
                               <ArrowUpRight className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Piutang Outstanding */}
-                          <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-2xs flex items-center justify-between">
+                          <div className="bg-gradient-to-br from-white via-[#fffbeb] to-[#fdf0d5] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
                             <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Piutang Outstanding</span>
-                              <span className="text-lg font-bold text-amber-700 block">{formatIDR(systemDashboardStats.unpaidSum)}</span>
+                              <span className="text-[9px] text-amber-900/80 font-extrabold uppercase tracking-widest block">Piutang Outstanding</span>
+                              <span className="text-lg font-black text-amber-800 block">{formatIDR(systemDashboardStats.unpaidSum)}</span>
                             </div>
-                            <div className="h-10 w-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600">
+                            <div className="h-11 w-11 bg-amber-200/60 rounded-2xl flex items-center justify-center text-amber-800 shadow-2xs">
                               <Bell className="h-5 w-5 animate-bounce" />
                             </div>
                           </div>
@@ -777,10 +846,10 @@ export default function App() {
                         {/* Bento visual lists & analytics links */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                           {/* Active events panel queue */}
-                          <div className="lg:col-span-7 bg-white p-6 border border-slate-200 rounded-2xl space-y-4 shadow-2xs text-left">
-                            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Status 3 Anggaran Kegiatan Komite</h3>
-                              <button onClick={() => setActiveTab('events')} className="text-xs text-indigo-600 font-bold hover:text-indigo-700">Semua Event</button>
+                          <div className="lg:col-span-7 bg-white/90 backdrop-blur-xs p-6 rounded-3xl space-y-4 shadow-sm text-left">
+                            <div className="flex justify-between items-center pb-3 border-b border-slate-100/80">
+                              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#003049]">Status 3 Anggaran Kegiatan Komite</h3>
+                              <button onClick={() => setActiveTab('events')} className="text-xs text-[#669bbc] font-extrabold hover:text-[#003049] transition-colors cursor-pointer">Semua Event →</button>
                             </div>
 
                             <div className="space-y-3">
@@ -790,16 +859,16 @@ export default function App() {
                                   : 0;
 
                                 return (
-                                  <div key={evt.id} className="bg-slate-50/50 hover:bg-slate-50 p-3.5 border border-slate-200/60 rounded-xl transition-all space-y-2">
+                                  <div key={evt.id} className="bg-gradient-to-r from-[#f7fafc] to-[#fdf0d5]/40 hover:to-[#fdf0d5]/80 p-4 rounded-2xl transition-all space-y-2 shadow-2xs">
                                     <div className="flex justify-between items-center">
-                                      <span className="text-xs font-bold text-slate-800">{evt.title}</span>
-                                      <span className="text-[10px] bg-slate-100 border border-slate-200 font-bold px-1.5 py-0.5 rounded uppercase text-slate-600">{evt.status}</span>
+                                      <span className="text-xs font-extrabold text-slate-800">{evt.title}</span>
+                                      <span className="text-[10px] bg-white font-extrabold px-2 py-0.5 rounded-full uppercase text-[#003049] shadow-2xs">{evt.status}</span>
                                     </div>
                                     <div className="space-y-1">
-                                      <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden">
-                                        <div className="bg-indigo-600 h-full rounded-full animate-pulse" style={{ width: `${spendRate}%` }}></div>
+                                      <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
+                                        <div className="bg-gradient-to-r from-[#003049] to-[#669bbc] h-full rounded-full animate-pulse" style={{ width: `${spendRate}%` }}></div>
                                       </div>
-                                      <div className="flex justify-between text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                      <div className="flex justify-between text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">
                                         <span>RAB: {formatIDR(evt.budgetTarget)}</span>
                                         <span>{spendRate}% Terpakai</span>
                                       </div>
@@ -814,20 +883,20 @@ export default function App() {
                           </div>
 
                           {/* Dynamic transaction log shortcuts */}
-                          <div className="lg:col-span-5 bg-white p-6 border border-slate-200 rounded-2xl space-y-4 shadow-2xs text-left">
-                            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Mutasi Keuangan Terkini</h3>
-                              <button onClick={() => setActiveTab('cashflow')} className="text-xs text-indigo-600 font-bold hover:text-indigo-700">Detail Buku Kas</button>
+                          <div className="lg:col-span-5 bg-white/90 backdrop-blur-xs p-6 rounded-3xl space-y-4 shadow-sm text-left">
+                            <div className="flex justify-between items-center pb-3 border-b border-slate-100/80">
+                              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#003049]">Mutasi Keuangan Terkini</h3>
+                              <button onClick={() => setActiveTab('cashflow')} className="text-xs text-[#669bbc] font-extrabold hover:text-[#003049] transition-colors cursor-pointer">Detail Buku Kas →</button>
                             </div>
 
-                            <div className="space-y-3 max-h-56 overflow-y-auto">
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                               {filteredTransactions.slice(0, 4).map(tx => (
-                                <div key={tx.id} className="flex justify-between items-center text-xs">
+                                <div key={tx.id} className="flex justify-between items-center text-xs p-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-100/80 transition-colors shadow-2xs">
                                   <div>
-                                    <span className="font-bold text-slate-800 block truncate max-w-[150px]">{tx.category}</span>
-                                    <span className="text-[10px] text-slate-400">{tx.date} • {tx.paymentMethod}</span>
+                                    <span className="font-extrabold text-slate-800 block truncate max-w-[150px]">{tx.category}</span>
+                                    <span className="text-[10px] text-slate-400 font-mono">{tx.date} • {tx.paymentMethod}</span>
                                   </div>
-                                  <span className={`font-bold ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                  <span className={`font-black ${tx.type === 'income' ? 'text-emerald-700' : 'text-[#c1121f]'}`}>
                                     {tx.type === 'income' ? '+' : '-'} {formatIDR(tx.amount)}
                                   </span>
                                 </div>
@@ -842,6 +911,20 @@ export default function App() {
                       </div>
                     )}
 
+                    {/* MANAJEMEN KELAS */}
+                    {activeTab === 'classes' && (
+                      <ClassManager 
+                        classes={dynamicClasses}
+                        students={filteredStudents}
+                        bills={filteredBills}
+                        selectedAcademicYear={selectedAcademicYear}
+                        onAddClass={handleAddClass}
+                        onEditClass={handleEditClass}
+                        onDeleteClass={handleDeleteClass}
+                        userRole={userRole}
+                      />
+                    )}
+
                     {/* MANAJEMEN SISWA */}
                     {activeTab === 'students' && (
                       <StudentManager 
@@ -849,6 +932,8 @@ export default function App() {
                         allStudents={students}
                         bills={filteredBills} 
                         allBills={bills}
+                        transactions={transactions}
+                        events={events}
                         classes={dynamicClasses} 
                         selectedAcademicYear={selectedAcademicYear}
                         onAddClass={handleAddClass}
@@ -879,6 +964,7 @@ export default function App() {
                         events={filteredEvents}
                         adminEmail={user.email || 'Demo Treasurer'}
                         userRole={userRole}
+                        selectedAcademicYear={selectedAcademicYear}
                       />
                     )}
 
@@ -904,6 +990,7 @@ export default function App() {
                         students={filteredStudents} 
                         bills={filteredBills} 
                         classes={dynamicClasses}
+                        selectedAcademicYear={selectedAcademicYear}
                       />
                     )}
 

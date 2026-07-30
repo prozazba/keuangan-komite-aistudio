@@ -113,10 +113,10 @@ export default function EventManager({ events, userRole }: EventManagerProps) {
         <div className="text-left">
           <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Target className="h-5 w-5 text-indigo-600" />
-            Program Kegiatan & RAB (Budgeting)
+            Program Kerja & RAB Komite Sekolah
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Definisikan Rencana Anggaran Biaya (RAB) kegiatan komite dan bandingkan dengan realisasi arus masuk/keluar kas secara transparan.
+            Perumusan Rencana Anggaran Biaya (RAB) program kerja independen Komite Sekolah & program kerja sama, pengawasan realisasi anggaran, serta transparansi.
           </p>
         </div>
         {userRole === 'operator' ? (

@@ -30,19 +30,19 @@ async function initDb() {
     // 1. Create tables if not exist
     await query(`
       CREATE TABLE IF NOT EXISTS students (
-        id VARCHAR(100) PRIMARY KEY,
-        student_id VARCHAR(100),
+        id VARCHAR(255) PRIMARY KEY,
+        student_id VARCHAR(255),
         name VARCHAR(255) NOT NULL,
-        class_id VARCHAR(100) NOT NULL,
+        class_id VARCHAR(255) NOT NULL,
         parents_name VARCHAR(255),
         parents_email VARCHAR(255),
-        parents_phone VARCHAR(100),
+        parents_phone VARCHAR(255),
         status VARCHAR(50) DEFAULT 'active',
         academic_year VARCHAR(50)
       );
 
       CREATE TABLE IF NOT EXISTS events (
-        id VARCHAR(100) PRIMARY KEY,
+        id VARCHAR(255) PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT,
         date VARCHAR(50),
@@ -54,29 +54,29 @@ async function initDb() {
       );
 
       CREATE TABLE IF NOT EXISTS transactions (
-        id VARCHAR(100) PRIMARY KEY,
+        id VARCHAR(255) PRIMARY KEY,
         date VARCHAR(50) NOT NULL,
         type VARCHAR(50) NOT NULL,
         category VARCHAR(100) NOT NULL,
         amount NUMERIC NOT NULL,
         description TEXT,
-        student_id VARCHAR(100),
+        student_id VARCHAR(255),
         student_name VARCHAR(255),
-        class_id VARCHAR(100),
+        class_id VARCHAR(255),
         period VARCHAR(100),
         payment_method VARCHAR(100),
         recorded_by VARCHAR(255),
-        event_id VARCHAR(100),
+        event_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS student_bills (
-        id VARCHAR(100) PRIMARY KEY,
-        student_id VARCHAR(100) NOT NULL,
+        id VARCHAR(255) PRIMARY KEY,
+        student_id VARCHAR(255) NOT NULL,
         student_name VARCHAR(255) NOT NULL,
-        student_class VARCHAR(100) NOT NULL,
+        student_class VARCHAR(255) NOT NULL,
         parents_name VARCHAR(255),
-        parents_phone VARCHAR(100),
+        parents_phone VARCHAR(255),
         parents_email VARCHAR(255),
         period VARCHAR(100) NOT NULL,
         amount_required NUMERIC DEFAULT 150000,
@@ -87,7 +87,7 @@ async function initDb() {
       );
 
       CREATE TABLE IF NOT EXISTS classes (
-        id VARCHAR(100) PRIMARY KEY,
+        id VARCHAR(255) PRIMARY KEY,
         name VARCHAR(255) NOT NULL
       );
     `);
@@ -98,7 +98,35 @@ async function initDb() {
       console.log("🌱 Seeding initial demo data into NeonDb PostgreSQL...");
       await seedInitialData();
     } else {
-      console.log("✅ NeonDb PostgreSQL tables verified and active.");
+      // Automatic cleanup for duplicate student entries in the same class
+      try {
+        await query(`
+          DELETE FROM student_bills 
+          WHERE student_id IN (
+            SELECT id FROM (
+              SELECT id, ROW_NUMBER() OVER (
+                PARTITION BY class_id, LOWER(TRIM(name))
+                ORDER BY id ASC
+              ) as rn
+              FROM students
+            ) t WHERE t.rn > 1
+          );
+
+          DELETE FROM students 
+          WHERE id IN (
+            SELECT id FROM (
+              SELECT id, ROW_NUMBER() OVER (
+                PARTITION BY class_id, LOWER(TRIM(name))
+                ORDER BY id ASC
+              ) as rn
+              FROM students
+            ) t WHERE t.rn > 1
+          );
+        `);
+        console.log("✅ NeonDb PostgreSQL tables verified, active, and deduplicated.");
+      } catch (dupErr) {
+        console.warn("Deduplication notice:", dupErr);
+      }
     }
   } catch (err) {
     console.error("❌ Error initializing NeonDb PostgreSQL:", err);
@@ -526,7 +554,17 @@ app.post('/api/batch', async (req, res) => {
                parents_phone = EXCLUDED.parents_phone,
                status = EXCLUDED.status,
                academic_year = EXCLUDED.academic_year`,
-            [id, data.studentId, data.name, data.classId, data.parentsName, data.parentsEmail, data.parentsPhone, data.status || 'active', data.academicYear || '2025/2026']
+            [
+              id, 
+              data.studentId || '', 
+              data.name || 'Siswa', 
+              data.classId || 'Unassigned', 
+              data.parentsName || 'Wali Murid', 
+              data.parentsEmail || '', 
+              data.parentsPhone || '', 
+              data.status || 'active', 
+              data.academicYear || '2025/2026'
+            ]
           );
         }
       } else if (collection === 'student_bills') {
@@ -549,7 +587,20 @@ app.post('/api/batch', async (req, res) => {
                status = EXCLUDED.status,
                due_date = EXCLUDED.due_date,
                updated_at = CURRENT_TIMESTAMP`,
-            [id, data.studentId, data.studentName, data.studentClass, data.parentsName, data.parentsPhone, data.parentsEmail, data.period, data.amountRequired, data.amountPaid, data.status, data.dueDate]
+            [
+              id, 
+              data.studentId || '', 
+              data.studentName || 'Siswa', 
+              data.studentClass || 'Unassigned', 
+              data.parentsName || '', 
+              data.parentsPhone || '', 
+              data.parentsEmail || '', 
+              data.period || 'Periode', 
+              data.amountRequired !== undefined && data.amountRequired !== null ? Number(data.amountRequired) : 150000, 
+              data.amountPaid !== undefined && data.amountPaid !== null ? Number(data.amountPaid) : 0, 
+              data.status || 'unpaid', 
+              data.dueDate || '2026-05-20'
+            ]
           );
         }
       } else if (collection === 'transactions') {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { db, handleFirestoreError, OperationType, collection, doc, deleteDoc, setDoc, updateDoc, writeBatch } from '../firebase';
-import { Student, StudentBill } from '../types';
-import { Plus, Trash2, Edit2, UserPlus, CheckCircle2, Search, Filter, RefreshCw, GraduationCap, X, Mail, Phone, User, Clipboard, AlertCircle } from 'lucide-react';
+import { Student, StudentBill, Transaction, Event } from '../types';
+import { Plus, Trash2, Edit2, UserPlus, CheckCircle2, Search, Filter, RefreshCw, GraduationCap, X, Mail, Phone, User, Clipboard, AlertCircle, Upload, Download, FileText, FileCode, Eye, CreditCard, Coins, Target, ShieldCheck } from 'lucide-react';
 import { getPeriodsForAcademicYear, getDueDateForPeriod, formatIDR } from '../utils';
 
 interface StudentManagerProps {
@@ -9,6 +9,8 @@ interface StudentManagerProps {
   allStudents: Student[];
   bills: StudentBill[];
   allBills: StudentBill[];
+  transactions?: Transaction[];
+  events?: Event[];
   classes: string[];
   selectedAcademicYear: string;
   onAddClass?: (newClassName: string) => Promise<void>;
@@ -20,11 +22,16 @@ export default function StudentManager({
   allStudents, 
   bills, 
   allBills, 
+  transactions = [],
+  events = [],
   classes, 
   selectedAcademicYear, 
   onAddClass, 
   userRole 
 }: StudentManagerProps) {
+  // Detail Modal State
+  const [selectedStudentDetail, setSelectedStudentDetail] = useState<Student | null>(null);
+
   // Form State
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAddClassForm, setShowAddClassForm] = useState(false);
@@ -501,6 +508,139 @@ export default function StudentManager({
     alert(`Berhasil mengimpor ${parsedRowsData.length} baris ke dalam tabel edit!`);
   };
 
+  // Download Templates
+  const downloadCSVTemplate = () => {
+    const csvContent = "NISN,Nama Siswa,Nama Wali,No HP Wali,Email Wali\n" +
+      "10928301,Ahmad Fauzi,Budi Fauzi,081234567890,budi@example.com\n" +
+      "10928302,Siti Nurhaliza,Rahmat Hidayat,081298765432,rahmat@example.com";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'template_siswa_komite.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadJSONTemplate = () => {
+    const jsonContent = JSON.stringify([
+      {
+        "studentId": "10928301",
+        "name": "Ahmad Fauzi",
+        "parentsName": "Budi Fauzi",
+        "parentsPhone": "081234567890",
+        "parentsEmail": "budi@example.com"
+      },
+      {
+        "studentId": "10928302",
+        "name": "Siti Nurhaliza",
+        "parentsName": "Rahmat Hidayat",
+        "parentsPhone": "081298765432",
+        "parentsEmail": "rahmat@example.com"
+      }
+    ], null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'template_siswa_komite.json');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Upload File Handler (CSV & JSON)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        if (!content) return;
+
+        let parsedData: Array<{
+          studentId: string;
+          name: string;
+          parentsName: string;
+          parentsPhone: string;
+          parentsEmail: string;
+        }> = [];
+
+        if (fileName.endsWith('.json')) {
+          const jsonData = JSON.parse(content);
+          const list = Array.isArray(jsonData) 
+            ? jsonData 
+            : (jsonData.students || jsonData.data || jsonData.siswa || []);
+
+          parsedData = list.map((item: any) => ({
+            studentId: String(item.studentId || item.nisn || item.id || '').trim(),
+            name: String(item.name || item.nama || item.studentName || item.namaSiswa || '').trim(),
+            parentsName: String(item.parentsName || item.namaWali || item.wali || item.orangTua || '').trim(),
+            parentsPhone: String(item.parentsPhone || item.noHp || item.phone || item.hp || item.telepon || item.no_hp || '').trim(),
+            parentsEmail: String(item.parentsEmail || item.email || item.emailWali || '').trim(),
+          })).filter((x: any) => x.studentId || x.name);
+        } else {
+          // CSV or plain text lines parsing
+          const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          if (lines.length === 0) {
+            alert("File CSV kosong!");
+            return;
+          }
+
+          let startIndex = 0;
+          const firstLineLower = lines[0].toLowerCase();
+          // Check if first line contains headers
+          if (firstLineLower.includes('nisn') || firstLineLower.includes('nama') || firstLineLower.includes('student') || firstLineLower.includes('wali')) {
+            startIndex = 1;
+          }
+
+          for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i];
+            let parts: string[] = [];
+            if (line.includes(';')) {
+              parts = line.split(';');
+            } else if (line.includes('\t')) {
+              parts = line.split('\t');
+            } else {
+              parts = line.split(',');
+            }
+
+            const cleanParts = parts.map(p => p.replace(/^["']|["']$/g, '').trim());
+            if (cleanParts.some(p => p.length > 0)) {
+              parsedData.push({
+                studentId: cleanParts[0] || '',
+                name: cleanParts[1] || '',
+                parentsName: cleanParts[2] || '',
+                parentsPhone: cleanParts[3] || '',
+                parentsEmail: cleanParts[4] || '',
+              });
+            }
+          }
+        }
+
+        if (parsedData.length === 0) {
+          alert("Tidak ada data siswa yang valid ditemukan dalam file.");
+          return;
+        }
+
+        const activeCurrentRows = bulkRows.filter(r => r.studentId || r.name || r.parentsName || r.parentsPhone || r.parentsEmail);
+        setBulkRows([...activeCurrentRows, ...parsedData]);
+        alert(`Berhasil mengunggah file! ${parsedData.length} data siswa telah dimasukkan ke dalam tabel input.`);
+      } catch (err) {
+        console.error("Error parsing file:", err);
+        alert("Gagal membaca file. Pastikan format file CSV atau JSON sesuai petunjuk.");
+      }
+    };
+
+    reader.readAsText(file);
+    e.target.value = ''; // Reset input
+  };
+
   // Handle Bulk Submit
   const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -629,10 +769,10 @@ export default function StudentManager({
         <div className="text-left">
           <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <GraduationCap className="h-5 w-5 text-indigo-600" />
-            Database Siswa & Iuran
+            Database Siswa Binaan Komite
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Kelola data siswa, informasi wali murid, serta generate tagihan iuran bulanan otomatis.
+            Pendataan siswa binaan & kontak wali murid sebagai konstituen Komite Sekolah untuk penyampaian informasi program, advokasi hak siswa, serta iuran gotong royong.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap w-full md:w-auto">
@@ -843,14 +983,51 @@ export default function StudentManager({
               </p>
             </div>
             
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Hidden file input */}
+              <input
+                type="file"
+                id="bulk-file-upload-input"
+                accept=".csv,.json,text/csv,application/json"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              <label
+                htmlFor="bulk-file-upload-input"
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Upload className="h-4 w-4" />
+                Upload File (CSV / JSON)
+              </label>
+
               <button
                 type="button"
                 onClick={() => setShowPasteModal(true)}
-                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-200/55"
+                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-200/80"
               >
                 <Clipboard className="h-4 w-4" />
-                Tempel Data dari Excel / CSV
+                Tempel Teks Spreadsheet
+              </button>
+
+              <button
+                type="button"
+                onClick={downloadCSVTemplate}
+                title="Download Contoh File Template CSV"
+                className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-200"
+              >
+                <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                Template CSV
+              </button>
+
+              <button
+                type="button"
+                onClick={downloadJSONTemplate}
+                title="Download Contoh File Template JSON"
+                className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-200"
+              >
+                <FileCode className="h-3.5 w-3.5 text-amber-600" />
+                Template JSON
               </button>
               
               <button
@@ -859,7 +1036,7 @@ export default function StudentManager({
                 className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-rose-200/55"
               >
                 <Trash2 className="h-4 w-4" />
-                Kosongkan Tabel
+                Kosongkan
               </button>
             </div>
           </div>
@@ -1337,7 +1514,7 @@ export default function StudentManager({
       )}
 
       {/* Filter and Search Container */}
-      <div className="bg-white border border-blue-100 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white/90 backdrop-blur-xs rounded-3xl p-4 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between text-left">
         <div className="relative w-full md:max-w-md">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
             <Search className="h-4 w-4" />
@@ -1347,16 +1524,16 @@ export default function StudentManager({
             placeholder="Cari nama, NISN, atau nama wali..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-100/80 focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-xs transition-all outline-none"
+            className="w-full bg-slate-50/80 focus:bg-white focus:ring-2 focus:ring-[#003049]/20 rounded-2xl pl-10 pr-4 py-2.5 text-xs transition-all outline-none border-none shadow-2xs font-medium"
           />
         </div>
 
         <div className="flex gap-2 items-center w-full md:w-auto">
-          <Filter className="h-4 w-4 text-slate-500 hidden md:inline" />
+          <Filter className="h-4 w-4 text-[#003049] hidden md:inline" />
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full md:w-48 bg-slate-50 border border-slate-100 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2.5 text-xs outline-none"
+            className="w-full md:w-48 bg-slate-50/80 focus:bg-white rounded-2xl px-3 py-2.5 text-xs outline-none border-none shadow-2xs font-extrabold text-slate-800"
           >
             <option value="All">Semua Tingkat Kelas</option>
             {classes.map(c => (
@@ -1367,11 +1544,11 @@ export default function StudentManager({
       </div>
 
       {/* Roster Table Layout */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
+      <div className="bg-white/90 backdrop-blur-xs rounded-3xl shadow-sm overflow-hidden text-left">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-150 text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <tr className="bg-gradient-to-r from-[#f7fafc] to-[#e6f0f6] text-xs font-extrabold text-[#003049] uppercase tracking-wider">
                 <th className="px-6 py-4">Data Siswa / NISN</th>
                 <th className="px-6 py-4">Tingkat Kelas</th>
                 <th className="px-6 py-4">Hubungan Orang Tua / Wali</th>
@@ -1380,7 +1557,7 @@ export default function StudentManager({
                 <th className="px-6 py-4 text-center">Aksi / Tindakan</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+            <tbody className="divide-y divide-slate-100/60 text-sm text-slate-700">
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => {
                   const studentOutstandingDues = bills
@@ -1428,30 +1605,37 @@ export default function StudentManager({
                         </button>
                       </td>
                       <td className="px-6 py-4.5">
-                        {userRole === 'operator' ? (
-                          <div className="text-center">
-                            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest bg-slate-50 px-2 py-1 rounded border border-slate-100" title="Akses edit terbatas">TERBATAS</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleEdit(student)}
-                              className="p-1 px-2 hover:bg-gray-100 rounded-md text-gray-600 hover:text-indigo-600 transition-colors flex items-center gap-1 text-xs font-bold"
-                              title="Edit data siswa"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(student.id)}
-                              className="p-1 px-2 hover:bg-red-50 rounded-md text-gray-600 hover:text-red-600 transition-colors flex items-center gap-1 text-xs font-bold"
-                              title="Hapus data siswa"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Hapus
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedStudentDetail(student)}
+                            className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold border border-indigo-100/80 cursor-pointer"
+                            title="Lihat Detail Profil, Tunggakan, & Transaksi Siswa"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Detail
+                          </button>
+                          
+                          {userRole !== 'operator' && (
+                            <>
+                              <button
+                                onClick={() => handleEdit(student)}
+                                className="p-1 px-2 hover:bg-gray-100 rounded-md text-gray-600 hover:text-indigo-600 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                title="Edit data siswa"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(student.id)}
+                                className="p-1 px-2 hover:bg-red-50 rounded-md text-gray-600 hover:text-red-600 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                title="Hapus data siswa"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Hapus
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1474,6 +1658,238 @@ export default function StudentManager({
           <div>Unit Admin Komite Sekolah • Real-time Sync Data Pasif</div>
         </div>
       </div>
+
+      {/* MODAL / DRAWER: DETAIL LENGKAP SISWA (PROFIL, TUNGGAKAN, TRANSAKSI, PROGRAM) */}
+      {selectedStudentDetail && (() => {
+        const studentBills = bills.filter(b => b.studentId === selectedStudentDetail.id);
+        const totalRequired = studentBills.reduce((acc, b) => acc + b.amountRequired, 0);
+        const totalPaid = studentBills.reduce((acc, b) => acc + b.amountPaid, 0);
+        const totalArrears = totalRequired - totalPaid;
+
+        const studentTransactions = transactions.filter(t => 
+          t.studentId === selectedStudentDetail.id ||
+          (selectedStudentDetail.name && t.description?.toLowerCase().includes(selectedStudentDetail.name.toLowerCase())) ||
+          (selectedStudentDetail.studentId && t.description?.includes(selectedStudentDetail.studentId))
+        );
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 my-auto text-left">
+              
+              {/* Modal Header */}
+              <div className="flex items-start justify-between pb-4 shrink-0 gap-4 border-b border-slate-100/80">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-widest bg-indigo-50/80 px-3 py-1 rounded-full shadow-2xs">
+                      Rincian Siswa • TA {selectedAcademicYear}
+                    </span>
+                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full shadow-2xs ${
+                      selectedStudentDetail.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {selectedStudentDetail.status === 'active' ? 'Status: Aktif' : 'Status: Nonaktif'}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2.5">
+                    <User className="h-6 w-6 text-indigo-600 shrink-0" />
+                    {selectedStudentDetail.name}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500 font-medium">
+                    <span>NISN: <strong className="text-slate-800 font-mono font-bold">{selectedStudentDetail.studentId}</strong></span>
+                    <span>Kelas: <strong className="text-indigo-600 font-bold">{selectedStudentDetail.classId}</strong></span>
+                    <span>Wali: <strong className="text-slate-800">{selectedStudentDetail.parentsName}</strong></span>
+                    <span>No. HP: <strong className="text-slate-800">{selectedStudentDetail.parentsPhone}</strong></span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedStudentDetail(null)}
+                  className="text-slate-400 hover:text-slate-700 p-2 rounded-2xl hover:bg-slate-100/80 transition-all cursor-pointer shrink-0"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Financial Overview Cards - Borderless Elevated */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 my-5 shrink-0">
+                <div className="bg-slate-50/90 rounded-2xl p-4 shadow-sm space-y-1">
+                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Total Kewajiban Iuran</span>
+                  <div className="text-xl font-black text-slate-900">{formatIDR(totalRequired)}</div>
+                  <span className="text-[11px] text-slate-400 font-medium block">{studentBills.length} Periode / Bulan Tagihan</span>
+                </div>
+
+                <div className="bg-emerald-50/70 rounded-2xl p-4 shadow-sm space-y-1">
+                  <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">Total Iuran Terbayar</span>
+                  <div className="text-xl font-black text-emerald-700">{formatIDR(totalPaid)}</div>
+                  <span className="text-[11px] text-emerald-600 font-medium block">{studentBills.filter(b => b.status === 'paid').length} Bulan Lunas</span>
+                </div>
+
+                <div className="bg-rose-50/70 rounded-2xl p-4 shadow-sm space-y-1">
+                  <span className="text-[10px] font-extrabold text-rose-800 uppercase tracking-wider block">Sisa Tunggakan Belum Bayar</span>
+                  <div className="text-xl font-black text-rose-700">{formatIDR(totalArrears)}</div>
+                  <span className="text-[11px] text-rose-600 font-medium block">
+                    {studentBills.filter(b => b.status !== 'paid').length} Bulan Belum Lunas
+                  </span>
+                </div>
+              </div>
+
+              {/* Scrollable Content Sections */}
+              <div className="flex-1 overflow-y-auto space-y-6 my-1 pr-1.5 min-h-0">
+                
+                {/* SECTION 1: RIWAYAT & STATUS TUNGGAKAN IURAN */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <Clipboard className="h-4 w-4 text-indigo-600" />
+                      Status Iuran & Tunggakan Siswa
+                    </h4>
+                    <span className="text-[11px] text-slate-400 font-medium">Total {studentBills.length} Bulan Tagihan</span>
+                  </div>
+
+                  {studentBills.length > 0 ? (
+                    <div className="bg-slate-50/50 rounded-2xl overflow-hidden shadow-xs">
+                      <table className="w-full text-xs text-left text-slate-600">
+                        <thead className="bg-slate-100/70 text-[10px] text-slate-500 uppercase tracking-wider font-extrabold">
+                          <tr>
+                            <th className="py-3 px-4">Periode Bulan</th>
+                            <th className="py-3 px-4">Nominal Tagihan</th>
+                            <th className="py-3 px-4">Sudah Dibayar</th>
+                            <th className="py-3 px-4">Jatuh Tempo</th>
+                            <th className="py-3 px-4 text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100/70 font-medium bg-white">
+                          {studentBills.map(bill => (
+                            <tr key={bill.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 px-4 font-bold text-slate-800">{bill.period}</td>
+                              <td className="py-3 px-4 font-medium">{formatIDR(bill.amountRequired)}</td>
+                              <td className="py-3 px-4 text-emerald-700 font-bold">{formatIDR(bill.amountPaid)}</td>
+                              <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{bill.dueDate || '-'}</td>
+                              <td className="py-3 px-4 text-right">
+                                {bill.status === 'paid' ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100/80 text-emerald-800 px-2.5 py-1 rounded-full font-extrabold shadow-2xs">
+                                    <CheckCircle2 className="h-3 w-3" /> Lunas
+                                  </span>
+                                ) : bill.status === 'partially_paid' ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-amber-100/80 text-amber-800 px-2.5 py-1 rounded-full font-extrabold shadow-2xs">
+                                    <AlertCircle className="h-3 w-3" /> Cicilan
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-rose-100/80 text-rose-800 px-2.5 py-1 rounded-full font-extrabold shadow-2xs">
+                                    <AlertCircle className="h-3 w-3" /> Belum Lunas
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50/70 rounded-2xl p-5 text-center text-slate-400 text-xs shadow-2xs">
+                      Belum ada data tagihan iuran untuk siswa ini.
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 2: RIWAYAT TRANSAKSI KAS & BUKTI BAYAR */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-indigo-600" />
+                      Riwayat Transaksi & Pembayaran Siswa
+                    </h4>
+                    <span className="text-[11px] text-slate-400 font-medium">{studentTransactions.length} Transaksi Tercatat</span>
+                  </div>
+
+                  {studentTransactions.length > 0 ? (
+                    <div className="bg-slate-50/50 rounded-2xl overflow-hidden shadow-xs">
+                      <table className="w-full text-xs text-left text-slate-600">
+                        <thead className="bg-slate-100/70 text-[10px] text-slate-500 uppercase tracking-wider font-extrabold">
+                          <tr>
+                            <th className="py-3 px-4">Tanggal</th>
+                            <th className="py-3 px-4">Keterangan / Deskripsi</th>
+                            <th className="py-3 px-4">Metode Bayar</th>
+                            <th className="py-3 px-4 text-right">Nominal</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100/70 font-medium bg-white">
+                          {studentTransactions.map(trx => (
+                            <tr key={trx.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 px-4 font-mono text-slate-500 text-[11px]">{trx.date}</td>
+                              <td className="py-3 px-4 font-bold text-slate-800">{trx.description}</td>
+                              <td className="py-3 px-4">
+                                <span className="inline-block bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                                  {trx.paymentMethod || 'Kas Komite'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right text-emerald-700 font-bold">{formatIDR(trx.amount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50/70 rounded-2xl p-5 text-center text-slate-400 text-xs shadow-2xs">
+                      Belum ada riwayat transaksi masuk yang tercatat atas nama siswa ini.
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 3: PROGRAM KERJA KOMITE & KONTRIBUSI */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <Target className="h-4 w-4 text-indigo-600" />
+                      Program Kerja Komite Yang Didukung Iuran Siswa
+                    </h4>
+                    <span className="text-[11px] text-slate-400 font-medium">{events.length} Program Kerja Terdaftar</span>
+                  </div>
+
+                  {events.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {events.map(evt => (
+                        <div key={evt.id} className="bg-slate-50/80 rounded-2xl p-4 shadow-xs space-y-2 hover:shadow-sm transition-all">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-extrabold text-xs text-slate-900">{evt.title}</span>
+                            <span className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase shrink-0 ${
+                              evt.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
+                              evt.status === 'active' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-700'
+                            }`}>
+                              {evt.status === 'completed' ? 'Selesai' : evt.status === 'active' ? 'Berjalan' : 'Rencana'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">{evt.description}</p>
+                          <div className="text-[10px] text-indigo-600 font-bold pt-2 flex justify-between items-center border-t border-slate-200/50">
+                            <span>Anggaran RAB: {formatIDR(evt.budgetTarget)}</span>
+                            <span className="text-slate-400">{evt.date}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50/70 rounded-2xl p-5 text-center text-slate-400 text-xs shadow-2xs">
+                      Belum ada program kerja komite terdaftar pada periode ini.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-4 flex justify-end shrink-0">
+                <button
+                  onClick={() => setSelectedStudentDetail(null)}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-md shadow-indigo-200 hover:shadow-lg"
+                >
+                  Tutup Rincian Siswa
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }

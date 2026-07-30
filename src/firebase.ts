@@ -88,6 +88,8 @@ const cache: Record<string, any[]> = {
 
 // Trigger registered callbacks for a given collection name
 async function fetchAndNotify(collName: string) {
+  if (!collName || collName === 'unknown') return;
+
   if (isOffline()) {
     const rawData = localStorage.getItem(`fs_${collName}`);
     const items = rawData ? JSON.parse(rawData) : [];
@@ -95,12 +97,15 @@ async function fetchAndNotify(collName: string) {
   } else {
     try {
       const res = await fetch(`/api/${collName}`);
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const items = await res.json();
         cache[collName] = items;
+      } else {
+        console.warn(`Failed fetching ${collName} from API: HTTP ${res.status}`);
       }
     } catch (err) {
-      console.warn(`Failed fetching ${collName} from NeonDb PostgreSQL API:`, err);
+      console.warn(`Failed fetching ${collName} from API:`, err);
     }
   }
 
@@ -145,13 +150,39 @@ export function collection(databaseInstance: any, pathName: string) {
 }
 
 export function doc(dbOrColl: any, pathOrColl?: string, docId?: string) {
-  if (typeof dbOrColl === 'string') {
-    return { collection: dbOrColl, id: pathOrColl, isMock: true };
+  // Overload 1: doc(db, 'collectionName', 'docId')
+  if (docId !== undefined) {
+    const collName = typeof pathOrColl === 'string' ? pathOrColl : (dbOrColl?.path || 'unknown');
+    return { collection: collName, id: docId, isMock: true };
   }
+
+  // Overload 2: doc(collectionRef, 'docId') where collectionRef has .path
   if (dbOrColl && dbOrColl.path) {
-    return { collection: dbOrColl.path, id: pathOrColl, isMock: true };
+    return { collection: dbOrColl.path, id: pathOrColl || '', isMock: true };
   }
-  return { collection: 'unknown', id: pathOrColl, isMock: true };
+
+  // Overload 3: doc('collectionName', 'docId')
+  if (typeof dbOrColl === 'string') {
+    if (pathOrColl) {
+      return { collection: dbOrColl, id: pathOrColl, isMock: true };
+    }
+    const parts = dbOrColl.split('/');
+    if (parts.length >= 2) {
+      return { collection: parts[0], id: parts.slice(1).join('/'), isMock: true };
+    }
+    return { collection: dbOrColl, id: '', isMock: true };
+  }
+
+  // Overload 4: doc(db, 'collectionName/docId')
+  if (typeof pathOrColl === 'string') {
+    const parts = pathOrColl.split('/');
+    if (parts.length >= 2) {
+      return { collection: parts[0], id: parts.slice(1).join('/'), isMock: true };
+    }
+    return { collection: parts[0], id: '', isMock: true };
+  }
+
+  return { collection: 'unknown', id: pathOrColl || '', isMock: true };
 }
 
 export function onSnapshot(collRef: any, callback: (snap: any) => void, errorCallback?: (err: any) => void) {
@@ -187,18 +218,18 @@ export async function setDoc(docRef: any, data: any, options?: any) {
     }
     localStorage.setItem(key, JSON.stringify(list));
   } else {
-    try {
-      await fetch(`/api/${collName}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(docData)
-      });
-    } catch (err) {
-      console.error(`Error saving doc to NeonDb PostgreSQL (${collName}):`, err);
+    const res = await fetch(`/api/${collName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(docData)
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({ error: 'Gagal menyimpan data' }));
+      throw new Error(errJson.error || `Server error ${res.status}`);
     }
   }
 
-  fetchAndNotify(collName);
+  await fetchAndNotify(collName);
 }
 
 export async function updateDoc(docRef: any, data: any) {
@@ -214,18 +245,18 @@ export async function updateDoc(docRef: any, data: any) {
       localStorage.setItem(key, JSON.stringify(list));
     }
   } else {
-    try {
-      await fetch(`/api/${collName}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: docId, ...data })
-      });
-    } catch (err) {
-      console.error(`Error updating doc in NeonDb PostgreSQL (${collName}):`, err);
+    const res = await fetch(`/api/${collName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: docId, ...data })
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({ error: 'Gagal memperbarui data' }));
+      throw new Error(errJson.error || `Server error ${res.status}`);
     }
   }
 
-  fetchAndNotify(collName);
+  await fetchAndNotify(collName);
 }
 
 export async function deleteDoc(docRef: any) {
@@ -238,16 +269,16 @@ export async function deleteDoc(docRef: any) {
     list = list.filter((x: any) => x.id !== docId);
     localStorage.setItem(key, JSON.stringify(list));
   } else {
-    try {
-      await fetch(`/api/${collName}/${docId}`, {
-        method: 'DELETE'
-      });
-    } catch (err) {
-      console.error(`Error deleting doc in NeonDb PostgreSQL (${collName}):`, err);
+    const res = await fetch(`/api/${collName}/${docId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({ error: 'Gagal menghapus data' }));
+      throw new Error(errJson.error || `Server error ${res.status}`);
     }
   }
 
-  fetchAndNotify(collName);
+  await fetchAndNotify(collName);
 }
 
 export function writeBatch(databaseInstance: any) {
@@ -292,20 +323,20 @@ export function writeBatch(databaseInstance: any) {
           localStorage.setItem(key, JSON.stringify(list));
         });
       } else {
-        try {
-          await fetch('/api/batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ operations })
-          });
-        } catch (err) {
-          console.error("Error committing batch to NeonDb PostgreSQL:", err);
+        const res = await fetch('/api/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ operations })
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({ error: 'Gagal mengeksekusi batch' }));
+          throw new Error(errJson.error || `Server error ${res.status}`);
         }
       }
 
-      affected.forEach(collName => {
-        fetchAndNotify(collName);
-      });
+      for (const collName of Array.from(affected)) {
+        await fetchAndNotify(collName);
+      }
     }
   };
 

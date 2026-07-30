@@ -59,6 +59,15 @@ export interface StudentBill {
   updatedAt: string;
 }
 
+export interface SchoolClass {
+  id: string;
+  name: string;
+  gradeLevel?: string;
+  homeroomTeacher?: string;
+  roomNumber?: string;
+  createdAt?: string;
+}
+
 export interface NotificationLog {
   id: string;
   studentId: string;

@@ -461,37 +461,37 @@ export default function StudentBillsManager({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Target Card */}
-        <div className="bg-white border text-left border-slate-100 rounded-2xl p-5 shadow-2xs flex items-center justify-between">
+        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-3xl p-5 shadow-xs flex items-center justify-between text-left">
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block font-sans">Kebutuhan Anggaran Iuran</span>
-            <span className="text-lg font-black text-slate-900 block font-mono">{formatIDR(billsStats.totalTarget)}</span>
+            <span className="text-[10px] font-extrabold text-[#003049]/70 uppercase tracking-widest block font-sans">Kebutuhan Anggaran Iuran</span>
+            <span className="text-lg font-black text-[#003049] block font-mono">{formatIDR(billsStats.totalTarget)}</span>
             <span className="text-[10px] text-slate-500 font-semibold block">Dari total {billsStats.totalCount} berkas tertagih</span>
           </div>
-          <div className="h-11 w-11 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
+          <div className="h-11 w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shadow-2xs">
             <ClipboardList className="h-5 w-5" />
           </div>
         </div>
 
         {/* Total Collected Card */}
-        <div className="bg-white border text-left border-slate-100 rounded-2xl p-5 shadow-2xs">
+        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-3xl p-5 shadow-xs text-left">
           <div className="flex items-center justify-between mb-2">
             <div className="space-y-0.5">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block font-sans">Iuran Telah Diterima</span>
-              <span className="text-lg font-black text-emerald-600 block font-mono">+{formatIDR(billsStats.totalPaid)}</span>
+              <span className="text-[10px] font-extrabold text-emerald-800/80 uppercase tracking-widest block font-sans">Iuran Telah Diterima</span>
+              <span className="text-lg font-black text-emerald-700 block font-mono">+{formatIDR(billsStats.totalPaid)}</span>
             </div>
-            <div className="h-10 w-10 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
+            <div className="h-10 w-10 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shadow-2xs">
               <CheckCircle2 className="h-5 w-5" />
             </div>
           </div>
           {/* Progress bar info */}
-          <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
-            <div className="flex justify-between text-[10px] text-slate-500 font-bold">
+          <div className="space-y-1.5 pt-1.5 border-t border-emerald-100/60">
+            <div className="flex justify-between text-[10px] text-slate-600 font-bold">
               <span>Rasio Likuiditas Tagihan</span>
-              <span className="text-emerald-600">{billsStats.collectionPercentage}%</span>
+              <span className="text-emerald-700 font-extrabold">{billsStats.collectionPercentage}%</span>
             </div>
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
               <div 
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
                 style={{ width: `${billsStats.collectionPercentage}%` }}
               ></div>
             </div>
@@ -499,29 +499,29 @@ export default function StudentBillsManager({
         </div>
 
         {/* Remaining Dues Outstanding Card */}
-        <div className="bg-white border text-left border-slate-100 rounded-2xl p-5 shadow-2xs flex items-center justify-between">
+        <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] rounded-3xl p-5 shadow-xs flex items-center justify-between text-left">
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block font-sans font-medium">Sisa Piutang Berjalan</span>
-            <span className="text-lg font-black text-rose-600 block font-mono">{formatIDR(billsStats.totalOutstanding)}</span>
+            <span className="text-[10px] font-extrabold text-[#780000]/80 uppercase tracking-widest block font-sans">Sisa Piutang Berjalan</span>
+            <span className="text-lg font-black text-[#c1121f] block font-mono">{formatIDR(billsStats.totalOutstanding)}</span>
             <span className="text-[10px] text-slate-500 font-semibold block">Wajib ditagih & direkonsiliasi</span>
           </div>
-          <div className="h-11 w-11 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-center text-rose-600">
+          <div className="h-11 w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shadow-2xs">
             <AlertCircle className="h-5 w-5" />
           </div>
         </div>
 
         {/* Distribution Indicator */}
-        <div className="bg-white border text-left border-slate-100 rounded-2xl p-5 shadow-2xs flex items-center justify-between">
+        <div className="bg-gradient-to-br from-white via-[#fffbeb] to-[#fdf0d5]/60 rounded-3xl p-5 shadow-xs flex items-center justify-between text-left">
           <div className="space-y-1.5 w-full">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block font-sans font-medium">Distribusi Status Tagihan</span>
+            <span className="text-[10px] font-extrabold text-amber-900/80 uppercase tracking-widest block font-sans">Distribusi Status Tagihan</span>
             <div className="flex gap-2 text-[10px] font-bold">
-              <div className="flex-1 bg-emerald-50 text-emerald-700 p-1.5 rounded-lg text-center">
+              <div className="flex-1 bg-emerald-100/80 text-emerald-800 p-1.5 rounded-xl text-center shadow-2xs">
                 <span className="block font-black">{billsStats.paidCount}</span> Lunas
               </div>
-              <div className="flex-1 bg-amber-50 text-amber-700 p-1.5 rounded-lg text-center">
+              <div className="flex-1 bg-amber-100/80 text-amber-900 p-1.5 rounded-xl text-center shadow-2xs">
                 <span className="block font-black">{billsStats.partialCount}</span> Partial
               </div>
-              <div className="flex-1 bg-rose-50 text-rose-700 p-1.5 rounded-lg text-center">
+              <div className="flex-1 bg-rose-100/80 text-rose-900 p-1.5 rounded-xl text-center shadow-2xs">
                 <span className="block font-black">{billsStats.unpaidCount}</span> Belum
               </div>
             </div>
@@ -665,7 +665,7 @@ export default function StudentBillsManager({
               <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">2. Label Tagihan Kustom *</label>
               <input
                 type="text"
-                placeholder="cth: Uang Gedung / Seragam Masuk"
+                placeholder="cth: Sumbangan Gotong Royong / Support Sarana Belajar"
                 value={customBillPurpose}
                 onChange={(e) => setCustomBillPurpose(e.target.value)}
                 required

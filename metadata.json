@@ -1,6 +1,6 @@
 {
-  "name": "Keuangan Komite",
-  "description": "Sistem informasi pembukuan kas komite sekolah, pembayaran iuran siswa, perumusan rencana anggaran biaya event (RAB), otomatisasi template reminder wali murid, serta ekspor laporan PDF bulanan perkelas.",
+  "name": "Keuangan Komite Sekolah",
+  "description": "Mitra independen sekolah: transparansi, akuntabilitas, dan advokasi siswa.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

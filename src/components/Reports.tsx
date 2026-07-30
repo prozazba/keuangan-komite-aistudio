@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, Student, StudentBill } from '../types';
-import { formatIDR, exportToCSV } from '../utils';
+import { formatIDR, getEducationalSemesters } from '../utils';
 import { 
-  Printer, FileText, BarChart3, Users, 
-  ArrowDownLeft, ArrowUpRight, CheckSquare, 
-  Calendar, Layers, Filter 
+  Printer, FileText, Users, 
+  CheckSquare, Calendar, Award, Landmark, CalendarDays
 } from 'lucide-react';
 
 interface ReportsProps {
@@ -12,28 +11,35 @@ interface ReportsProps {
   students: Student[];
   bills: StudentBill[];
   classes: string[];
+  selectedAcademicYear?: string;
 }
 
-export default function Reports({ transactions, students, bills, classes }: ReportsProps) {
+export default function Reports({ transactions, students, bills, classes, selectedAcademicYear = '2025/2026' }: ReportsProps) {
   // Report View Tabs
-  const [activeReport, setActiveReport] = useState<'monthly' | 'bills' | 'class'>('monthly');
+  const [activeReport, setActiveReport] = useState<'monthly' | 'lpj' | 'bills' | 'class'>('lpj');
   
   // Selection/Filtering Parameter States
   const [selectedMonth, setSelectedMonth] = useState('2026-05'); // Defaults to local environment month
   const [billingStatusFilter, setBillingStatusFilter] = useState<'All' | 'unpaid' | 'paid' | 'partially_paid'>('All');
   
-  // Computed dynamic month list from transaction logs
+  // Educational Calendar Semesters metadata
+  const eduSemesters = useMemo(() => {
+    return getEducationalSemesters(selectedAcademicYear);
+  }, [selectedAcademicYear]);
+
+  // Computed dynamic month list from transaction logs in Educational Calendar order
   const monthsList = useMemo(() => {
     const list = new Set<string>();
-    // Prepopulate fallback
-    list.add('2026-05');
+    // Prepopulate standard months from selected academic year
+    eduSemesters.sem1Prefixes.forEach(p => list.add(p));
+    eduSemesters.sem2Prefixes.forEach(p => list.add(p));
     transactions.forEach(t => {
       if (t.date && t.date.length >= 7) {
         list.add(t.date.substring(0, 7));
       }
     });
     return Array.from(list).sort().reverse();
-  }, [transactions]);
+  }, [transactions, eduSemesters]);
 
   // -- 1. DATA COMPUTATION FOR LAPORAN BULANAN (MONTHLY) --
   const monthlyData = useMemo(() => {
@@ -78,7 +84,74 @@ export default function Reports({ transactions, students, bills, classes }: Repo
     };
   }, [transactions, selectedMonth]);
 
-  // -- 2. DATA COMPUTATION FOR BILLING AND STUDENT DUES REPORT --
+  // -- 2. DATA COMPUTATION FOR LPJ KALENDER PENDIDIKAN (FULL YEAR JULI - JUNI & SEMESTER BREAKDOWN) --
+  const lpjData = useMemo(() => {
+    let sem1Income = 0;
+    let sem1Expense = 0;
+    let sem2Income = 0;
+    let sem2Expense = 0;
+
+    const sem1Transactions: Transaction[] = [];
+    const sem2Transactions: Transaction[] = [];
+
+    transactions.forEach(tx => {
+      const monthPrefix = tx.date.substring(0, 7);
+      if (eduSemesters.sem1Prefixes.includes(monthPrefix)) {
+        if (tx.type === 'income') sem1Income += tx.amount;
+        else sem1Expense += tx.amount;
+        sem1Transactions.push(tx);
+      } else if (eduSemesters.sem2Prefixes.includes(monthPrefix)) {
+        if (tx.type === 'income') sem2Income += tx.amount;
+        else sem2Expense += tx.amount;
+        sem2Transactions.push(tx);
+      }
+    });
+
+    const totalYearIncome = sem1Income + sem2Income;
+    const totalYearExpense = sem1Expense + sem2Expense;
+    const netYearCash = totalYearIncome - totalYearExpense;
+
+    // Student Bills breakdown per Semester
+    let sem1BillsTarget = 0;
+    let sem1BillsPaid = 0;
+    let sem2BillsTarget = 0;
+    let sem2BillsPaid = 0;
+
+    bills.forEach(b => {
+      const periodLower = b.period.toLowerCase();
+      const isSem1 = eduSemesters.sem1Months.some(m => periodLower.includes(m.toLowerCase().split(' ')[0]));
+      if (isSem1) {
+        sem1BillsTarget += b.amountRequired;
+        sem1BillsPaid += b.amountPaid;
+      } else {
+        sem2BillsTarget += b.amountRequired;
+        sem2BillsPaid += b.amountPaid;
+      }
+    });
+
+    return {
+      sem1Income,
+      sem1Expense,
+      sem1Net: sem1Income - sem1Expense,
+      sem2Income,
+      sem2Expense,
+      sem2Net: sem2Income - sem2Expense,
+      totalYearIncome,
+      totalYearExpense,
+      netYearCash,
+      sem1BillsTarget,
+      sem1BillsPaid,
+      sem2BillsTarget,
+      sem2BillsPaid,
+      totalBillsTarget: sem1BillsTarget + sem2BillsTarget,
+      totalBillsPaid: sem1BillsPaid + sem2BillsPaid,
+      totalBillsOutstanding: (sem1BillsTarget + sem2BillsTarget) - (sem1BillsPaid + sem2BillsPaid),
+      sem1Transactions,
+      sem2Transactions
+    };
+  }, [transactions, bills, eduSemesters]);
+
+  // -- 3. DATA COMPUTATION FOR BILLING AND STUDENT DUES REPORT --
   const billingReportData = useMemo(() => {
     let totalDuesRequired = 0;
     let totalDuesCollected = 0;
@@ -101,7 +174,7 @@ export default function Reports({ transactions, students, bills, classes }: Repo
     };
   }, [bills, billingStatusFilter]);
 
-  // -- 3. DATA COMPUTATION FOR GLOBAL REPORT PER CLASS --
+  // -- 4. DATA COMPUTATION FOR GLOBAL REPORT PER CLASS --
   const classReportData = useMemo(() => {
     const classMap: {
       [cls: string]: {
@@ -152,67 +225,81 @@ export default function Reports({ transactions, students, bills, classes }: Repo
     <div id="school-reports-section" className="space-y-6">
       
       {/* Tab Selectors & Print Trigger */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs no-print">
-        <div className="text-left">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <FileText className="h-5 w-5 text-indigo-600" />
-            Laporan Keuangan Komite
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/90 backdrop-blur-xs p-6 rounded-3xl shadow-xs no-print">
+        <div className="text-left space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-extrabold text-[#003049] uppercase tracking-widest bg-[#fdf0d5] px-2.5 py-1 rounded-full shadow-2xs">
+              Kalender Pendidikan TA {selectedAcademicYear}
+            </span>
+            <span className="text-xs font-bold text-slate-500">• Siklus Juli s.d. Juni</span>
+          </div>
+          <h2 className="text-lg font-black text-[#003049] tracking-tight flex items-center gap-2">
+            <FileText className="h-5 w-5 text-[#003049]" />
+            Laporan Keuangan & LPJ Pertanggungjawaban Komite
           </h2>
-          <p className="text-xs text-slate-505 mt-1">
-            Unduh laporan transparansi, audit iuran, dan kemajuan kas yang akuntabel dan siap cetak ke format PDF.
+          <p className="text-xs text-slate-500 font-medium leading-relaxed">
+            Sistem pelaporan resmi yang disesuaikan dengan kalender pendidikan (Juli s.d. Juni) untuk transparansi, pemeriksaan audit, dan pertanggungjawaban akhir tahun ajaran.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           {/* Visual Report selectors */}
-          <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto text-xs font-bold font-sans">
+          <div className="flex bg-slate-100/80 p-1 rounded-2xl w-full sm:w-auto text-xs font-bold font-sans shadow-2xs">
+            <button
+              onClick={() => setActiveReport('lpj')}
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-extrabold ${activeReport === 'lpj' ? 'bg-[#003049] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              <Award className="h-3.5 w-3.5" />
+              LPJ Kalender Pendidikan
+            </button>
             <button
               onClick={() => setActiveReport('monthly')}
-              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer text-xs ${activeReport === 'monthly' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-extrabold ${activeReport === 'monthly' ? 'bg-[#003049] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <Calendar className="h-3 w-3" />
+              <Calendar className="h-3.5 w-3.5" />
               Laporan Bulanan
             </button>
             <button
               onClick={() => setActiveReport('bills')}
-              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer text-xs ${activeReport === 'bills' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-extrabold ${activeReport === 'bills' ? 'bg-[#003049] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <CheckSquare className="h-3 w-3" />
-              Laporan Tagihan
+              <CheckSquare className="h-3.5 w-3.5" />
+              Audit Tagihan
             </button>
             <button
               onClick={() => setActiveReport('class')}
-              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer text-xs ${activeReport === 'class' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
+              className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-extrabold ${activeReport === 'class' ? 'bg-[#003049] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <Users className="h-3 w-3" />
-              Laporan Per Kelas
+              <Users className="h-3.5 w-3.5" />
+              Per Kelas
             </button>
           </div>
 
           <button
             onClick={handlePrintReport}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-[#003049] to-[#669bbc] text-white px-4 py-2 rounded-2xl text-xs font-extrabold transition-all shadow-xs cursor-pointer hover:opacity-95"
           >
-            <Printer className="h-3.5 w-3.5" />
-            Cetak Laporan (PDF)
+            <Printer className="h-4 w-4" />
+            Cetak PDF / Cetak Laporan
           </button>
         </div>
       </div>
 
       {/* NO-PRINT: Parameter Options Row */}
-      <div className="bg-white border border-slate-100/85 rounded-2xl p-4 shadow-2xs flex flex-wrap gap-4 items-center justify-between no-print text-left">
-        <div className="text-xs font-bold text-slate-800">
-          Ubah Periode / Tapis Data Laporan
+      <div className="bg-white/90 backdrop-blur-xs rounded-3xl p-4 shadow-xs flex flex-wrap gap-4 items-center justify-between no-print text-left">
+        <div className="flex items-center gap-2 text-xs font-extrabold text-[#003049]">
+          <CalendarDays className="h-4 w-4 text-[#669bbc]" />
+          <span>Periodisasi Pendidikan: Juli {eduSemesters.startYear} – Juni {eduSemesters.endYear}</span>
         </div>
 
         <div className="flex gap-3">
           {activeReport === 'monthly' && (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 font-semibold">Pilih Periode:</span>
+              <span className="text-slate-500 font-bold">Pilih Bulan Kalender Pendidikan:</span>
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs outline-none cursor-pointer text-slate-700 font-bold"
+                className="bg-slate-50/80 border-none rounded-2xl px-3 py-2 text-xs outline-none cursor-pointer text-slate-800 font-extrabold shadow-2xs"
               >
                 {monthsList.map(m => (
                   <option key={m} value={m}>{new Date(m + "-01").toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</option>
@@ -223,13 +310,13 @@ export default function Reports({ transactions, students, bills, classes }: Repo
 
           {activeReport === 'bills' && (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 font-semibold">Status Pembayaran:</span>
+              <span className="text-slate-500 font-bold">Status Pembayaran:</span>
               <select
                 value={billingStatusFilter}
                 onChange={(e) => setBillingStatusFilter(e.target.value as any)}
-                className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs outline-none cursor-pointer text-slate-700 font-bold"
+                className="bg-slate-50/80 border-none rounded-2xl px-3 py-2 text-xs outline-none cursor-pointer text-slate-800 font-extrabold shadow-2xs"
               >
-                <option value="All">Semua Status</option>
+                <option value="All">Semua Status Tagihan</option>
                 <option value="unpaid">Belum Lunas (Unpaid)</option>
                 <option value="partially_paid">Bayar Sebagian (Partial)</option>
                 <option value="paid">Lunas (Paid)</option>
@@ -242,43 +329,139 @@ export default function Reports({ transactions, students, bills, classes }: Repo
       {/* ========================================================= */}
       {/* PRINT-ZONE CONTAINER (Fulfills exact professional styles) */}
       {/* ========================================================= */}
-      <div className="print-report-container bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-8 min-h-screen">
+      <div className="print-report-container bg-white border border-slate-200 rounded-3xl shadow-sm p-8 space-y-8 min-h-screen text-left">
         
         {/* PRINT HEADER: KOP SURAT RESMI KOMITE SEKOLAH */}
-        <div className="kop-surat border-b-4 border-blue-100 pb-5 text-center relative flex flex-col items-center justify-center gap-1">
-          <h1 className="text-xl font-black text-gray-900 tracking-wider uppercase">KOMITE SEKOLAH MANDIRI INDONESIA</h1>
-          <p className="text-xs text-gray-500 font-semibold uppercase tracking-widest">NPSN: 10293847 • SK Kemenkumham RI No. AHU-0019283-05.2023</p>
-          <p className="text-xs text-slate-500 leading-normal max-w-lg mt-0.5">Sekretariat: Jl. Pendidikan No. 74 Komplek Sekolah Mandiri, Jakarta, Indonesia. Telp: 021-99887766 • Email: komite@sekolahmandiri.sch.id</p>
-          <div className="absolute right-0 top-0 text-[10px] text-gray-400 font-mono italic no-print">Tercetak Sistem: {new Date().toLocaleDateString('id-ID')}</div>
+        <div className="kop-surat border-b-4 border-[#003049] pb-5 text-center relative flex flex-col items-center justify-center gap-1">
+          <h1 className="text-xl font-black text-[#003049] tracking-wider uppercase">ORGANISASI KOMITE SEKOLAH MANDIRI</h1>
+          <p className="text-xs text-[#003049] font-extrabold uppercase tracking-widest">Laporan Pertanggungjawaban Keuangan Berdasarkan Kalender Pendidikan</p>
+          <p className="text-xs text-slate-500 leading-normal max-w-lg mt-0.5">Sekretariat Komite Sekolah • Jl. Pendidikan No. 74 Komplek Sekolah, Jakarta. Email: komite@sekolah.sch.id</p>
+          <div className="mt-2 inline-flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-[11px] font-extrabold text-[#003049]">
+            <Landmark className="h-3.5 w-3.5" />
+            Tahun Ajaran {selectedAcademicYear} (Siklus Juli {eduSemesters.startYear} - Juni {eduSemesters.endYear})
+          </div>
+          <div className="absolute right-0 top-0 text-[10px] text-slate-400 font-mono italic no-print">Tercetak Sistem: {new Date().toLocaleDateString('id-ID')}</div>
         </div>
+
+        {/* ==================== SCREEN 0: LPJ KALENDER PENDIDIKAN (FULL YEAR JULI - JUNI) ==================== */}
+        {activeReport === 'lpj' && (
+          <div className="space-y-8">
+            <div className="text-center space-y-1">
+              <h2 className="text-base font-black text-[#003049] tracking-wider uppercase">
+                LAPORAN PERTANGGUNGJAWABAN (LPJ) KEUANGAN KOMITE SEKOLAH
+              </h2>
+              <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">
+                PERIODE KALENDER PENDIDIKAN TAHUN AJARAN {selectedAcademicYear}
+              </p>
+            </div>
+
+            {/* High Level 12-Month Educational Calendar Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="border border-slate-200 p-5 rounded-2xl bg-gradient-to-br from-[#f7fafc] to-[#e6f0f6] space-y-1">
+                <span className="text-[10px] font-extrabold text-[#003049]/80 uppercase tracking-widest block">Total Pemasukan TA (Juli - Juni)</span>
+                <span className="text-xl font-black text-emerald-700 font-mono block">+{formatIDR(lpjData.totalYearIncome)}</span>
+                <p className="text-[10px] text-slate-500 font-medium">Iuran wali murid, sumbangan, & donasi acara</p>
+              </div>
+
+              <div className="border border-slate-200 p-5 rounded-2xl bg-gradient-to-br from-[#fff5f5] to-[#fde8e8] space-y-1">
+                <span className="text-[10px] font-extrabold text-[#780000]/80 uppercase tracking-widest block">Total Pengeluaran Program (Juli - Juni)</span>
+                <span className="text-xl font-black text-[#c1121f] font-mono block">-{formatIDR(lpjData.totalYearExpense)}</span>
+                <p className="text-[10px] text-slate-500 font-medium">Realisasi program kerja, sarana, & giat sekolah</p>
+              </div>
+
+              <div className="border border-slate-200 p-5 rounded-2xl bg-gradient-to-br from-white to-[#fdf0d5]/60 space-y-1">
+                <span className="text-[10px] font-extrabold text-[#003049]/80 uppercase tracking-widest block">Sisa Saldo Kas Bersih LPJ</span>
+                <span className="text-xl font-black text-[#003049] font-mono block">{formatIDR(lpjData.netYearCash)}</span>
+                <p className="text-[10px] text-slate-500 font-medium">Saldo siap dialihkan ke TA berikutnya</p>
+              </div>
+            </div>
+
+            {/* Semester Breakdown Table */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black text-[#003049] uppercase tracking-wider border-b-2 border-[#003049] pb-2 flex justify-between items-center">
+                <span>I. REKAPITULASI KEUANGAN PER SEMESTER (KALENDER PENDIDIKAN)</span>
+                <span className="text-[10px] font-bold text-slate-500">TA {selectedAcademicYear}</span>
+              </h3>
+
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#f7fafc] border-b border-slate-200 text-[#003049] font-black uppercase tracking-wider">
+                    <th className="py-3 px-4">Semester & Rentang Bulan</th>
+                    <th className="py-3 px-4 text-right">Target Iuran</th>
+                    <th className="py-3 px-4 text-right">Pemasukan Realisasi</th>
+                    <th className="py-3 px-4 text-right">Pengeluaran Realisasi</th>
+                    <th className="py-3 px-4 text-right">Saldo Netto Semester</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="py-3.5 px-4 font-bold text-slate-900">
+                      <div>{eduSemesters.sem1Name}</div>
+                      <span className="text-[10px] text-slate-400 font-medium">Bulan Ke-1 s.d. Ke-6</span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-medium">{formatIDR(lpjData.sem1BillsTarget)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-emerald-700">+{formatIDR(lpjData.sem1Income)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-[#c1121f]">-{formatIDR(lpjData.sem1Expense)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-[#003049]">{formatIDR(lpjData.sem1Net)}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-4 font-bold text-slate-900">
+                      <div>{eduSemesters.sem2Name}</div>
+                      <span className="text-[10px] text-slate-400 font-medium">Bulan Ke-7 s.d. Ke-12</span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-medium">{formatIDR(lpjData.sem2BillsTarget)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-emerald-700">+{formatIDR(lpjData.sem2Income)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-[#c1121f]">-{formatIDR(lpjData.sem2Expense)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-[#003049]">{formatIDR(lpjData.sem2Net)}</td>
+                  </tr>
+                  <tr className="bg-[#f7fafc] font-black text-slate-900">
+                    <td className="py-3.5 px-4 uppercase">TOTAL TAHUN AJARAN FULL (JULI – JUNI)</td>
+                    <td className="py-3.5 px-4 text-right">{formatIDR(lpjData.totalBillsTarget)}</td>
+                    <td className="py-3.5 px-4 text-right text-emerald-800">+{formatIDR(lpjData.totalYearIncome)}</td>
+                    <td className="py-3.5 px-4 text-right text-[#c1121f]">-{formatIDR(lpjData.totalYearExpense)}</td>
+                    <td className="py-3.5 px-4 text-right text-[#003049]">{formatIDR(lpjData.netYearCash)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Complete Audit Summary */}
+            <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200 text-xs space-y-2">
+              <h4 className="font-black text-[#003049] uppercase tracking-wider">II. RINGKASAN AKUNTABILITAS & PIUTANG IURAN</h4>
+              <p className="text-slate-600 leading-relaxed font-medium">
+                Sesuai periodisasi Kalender Pendidikan TA {selectedAcademicYear}, total anggaran kebutuhan iuran gotong royong murid sebesar <b>{formatIDR(lpjData.totalBillsTarget)}</b> dengan total realisasi iuran terkumpul sebesar <b>{formatIDR(lpjData.totalBillsPaid)}</b>. Sisa piutang berjalan yang perlu ditagih/direkonsiliasi pada siklus berikutnya adalah sebesar <b>{formatIDR(lpjData.totalBillsOutstanding)}</b>.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ==================== SCREEN 1: LAPORAN BULANAN (MONTHLY CASH FLOW) ==================== */}
         {activeReport === 'monthly' && (
           <div className="space-y-6">
             <div className="text-center space-y-1">
               <h2 className="text-md font-bold text-gray-900 tracking-wider uppercase">LAPORAN MUTASI BULANAN & ARUS KAS KOMITE SEKOLAH</h2>
-              <p className="text-xs text-indigo-700 font-extrabold tracking-wider uppercase">
-                PERIODE BULAN: {new Date(selectedMonth + "-01").toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+              <p className="text-xs text-[#003049] font-extrabold tracking-wider uppercase">
+                PERIODE BULAN: {new Date(selectedMonth + "-01").toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} (TA {selectedAcademicYear})
               </p>
             </div>
 
             {/* Rollover balance summary ledger */}
             <div className="grid grid-cols-4 gap-4 text-xs font-semibold uppercase tracking-wider text-slate-700">
-              <div className="border border-slate-100 p-4 rounded-xl text-center bg-slate-50/50">
+              <div className="border border-slate-200 p-4 rounded-2xl text-center bg-slate-50/50">
                 <span className="text-[9px] text-slate-400 block font-bold mb-1">Saldo Kas Awal</span>
                 <span className="text-xs font-black text-slate-900">{formatIDR(monthlyData.beginningBalance)}</span>
               </div>
-              <div className="border border-emerald-100 p-4 rounded-xl text-center bg-emerald-50/10">
-                <span className="text-[9px] text-emerald-500 block font-bold mb-1">Mutasi Masuk</span>
+              <div className="border border-emerald-100 p-4 rounded-2xl text-center bg-emerald-50/10">
+                <span className="text-[9px] text-emerald-600 block font-bold mb-1">Mutasi Masuk</span>
                 <span className="text-xs font-black text-emerald-700">+{formatIDR(monthlyData.incomeTotal)}</span>
               </div>
-              <div className="border border-rose-100 p-4 rounded-xl text-center bg-rose-50/10">
-                <span className="text-[9px] text-rose-500 block font-bold mb-1">Mutasi Keluar</span>
-                <span className="text-xs font-black text-rose-700">-{formatIDR(monthlyData.expenseTotal)}</span>
+              <div className="border border-rose-100 p-4 rounded-2xl text-center bg-rose-50/10">
+                <span className="text-[9px] text-rose-600 block font-bold mb-1">Mutasi Keluar</span>
+                <span className="text-xs font-black text-[#c1121f]">-{formatIDR(monthlyData.expenseTotal)}</span>
               </div>
-              <div className="border border-indigo-200 p-4 rounded-xl text-center bg-indigo-50/25">
-                <span className="text-[9px] text-indigo-500 block font-bold mb-1">Saldo Akhir</span>
-                <span className="text-xs font-black text-indigo-700">{formatIDR(monthlyData.endingBalance)}</span>
+              <div className="border border-slate-200 p-4 rounded-2xl text-center bg-[#f7fafc]">
+                <span className="text-[9px] text-[#003049] block font-bold mb-1">Saldo Akhir</span>
+                <span className="text-xs font-black text-[#003049]">{formatIDR(monthlyData.endingBalance)}</span>
               </div>
             </div>
 
@@ -319,9 +502,9 @@ export default function Reports({ transactions, students, bills, classes }: Repo
 
               {/* Expense Transactions Column */}
               <div className="space-y-3">
-                <h3 className="text-xs font-bold text-rose-800 uppercase tracking-widest border-b-2 border-rose-500 pb-1.5 flex items-center justify-between">
+                <h3 className="text-xs font-bold text-[#780000] uppercase tracking-widest border-b-2 border-[#c1121f] pb-1.5 flex items-center justify-between">
                   <span>II. Rincian Pengeluaran Kas</span>
-                  <span className="text-[11px] font-extrabold text-rose-600">{formatIDR(monthlyData.expenseTotal)}</span>
+                  <span className="text-[11px] font-extrabold text-[#c1121f]">{formatIDR(monthlyData.expenseTotal)}</span>
                 </h3>
                 
                 <table className="w-full text-xs text-left">
@@ -338,7 +521,7 @@ export default function Reports({ transactions, students, bills, classes }: Repo
                         <tr key={tx.id} className="hover:bg-gray-55">
                           <td className="py-2 px-2 text-gray-500 font-medium whitespace-nowrap">{tx.date.substring(8, 10)}</td>
                           <td className="py-2 px-2 max-w-xs">{tx.description}</td>
-                          <td className="py-2 px-2 text-right font-bold text-rose-600">-{formatIDR(tx.amount)}</td>
+                          <td className="py-2 px-2 text-right font-bold text-[#c1121f]">-{formatIDR(tx.amount)}</td>
                         </tr>
                       ))
                     ) : (
@@ -359,21 +542,21 @@ export default function Reports({ transactions, students, bills, classes }: Repo
             <div className="text-center space-y-1">
               <h2 className="text-md font-bold text-gray-900 tracking-wider uppercase">LAPORAN MUTASI DAN PIUTANG TAGIHAN SIKLUS SISWA</h2>
               <p className="text-xs text-emerald-700 font-semibold tracking-wider uppercase">
-                Filter Status Bayar Terlampir: {billingStatusFilter === 'All' ? 'SEMUA STATUS TAGIHAN' : billingStatusFilter.toUpperCase()}
+                TA {selectedAcademicYear} • Filter: {billingStatusFilter === 'All' ? 'SEMUA STATUS TAGIHAN' : billingStatusFilter.toUpperCase()}
               </p>
             </div>
 
             {/* Billing totalizer blocks */}
             <div className="grid grid-cols-3 gap-4 text-xs font-semibold uppercase tracking-wider text-slate-700">
-              <div className="border border-slate-100 p-4 rounded-xl text-center">
+              <div className="border border-slate-200 p-4 rounded-2xl text-center">
                 <span className="text-[9px] text-slate-400 block font-bold mb-1">Total Target Piutang Komite</span>
                 <span className="text-xs font-bold text-slate-800">{formatIDR(billingReportData.totalDuesRequired)}</span>
               </div>
-              <div className="border border-slate-100 p-4 rounded-xl text-center bg-emerald-50/10">
+              <div className="border border-slate-200 p-4 rounded-2xl text-center bg-emerald-50/10">
                 <span className="text-[9px] text-emerald-600 block font-bold mb-1">Total Terbayarkan</span>
                 <span className="text-xs font-bold text-emerald-700">{formatIDR(billingReportData.totalDuesCollected)}</span>
               </div>
-              <div className="border border-slate-100 p-4 rounded-xl text-center bg-amber-50/10 border-amber-100">
+              <div className="border border-slate-200 p-4 rounded-2xl text-center bg-amber-50/10 border-amber-100">
                 <span className="text-[9px] text-amber-600 block font-bold mb-1">Sisa Tunggakan Tertinggal</span>
                 <span className="text-xs font-bold text-amber-800">{formatIDR(billingReportData.totalOutstandingDues)}</span>
               </div>
@@ -440,7 +623,7 @@ export default function Reports({ transactions, students, bills, classes }: Repo
           <div className="space-y-6">
             <div className="text-center space-y-1">
               <h2 className="text-md font-bold text-gray-900 tracking-wider uppercase">LAPORAN KINERJA DAN PARTISIPASI IURAN GLOBAL PER KELAS</h2>
-              <p className="text-xs text-indigo-700 font-semibold tracking-wider uppercase">KEDEPUTIAN BENDAHARA KOMITE SEKOLAH MANDIRI</p>
+              <p className="text-xs text-[#003049] font-semibold tracking-wider uppercase">KEDEPUTIAN BENDAHARA KOMITE SEKOLAH MANDIRI • TA {selectedAcademicYear}</p>
             </div>
 
             {/* Table of Class Rosters aggregated */}
@@ -493,11 +676,11 @@ export default function Reports({ transactions, students, bills, classes }: Repo
         )}
 
         {/* PRINT FOOTER: SIGN BOXES FOR ACCOUNTABILITY AND TRANSPARENCY */}
-        <div className="pt-20 grid grid-cols-2 md:grid-cols-3 gap-6 text-xs text-center font-semibold text-gray-700 border-t border-gray-100 leading-normal">
+        <div className="pt-16 grid grid-cols-2 md:grid-cols-3 gap-6 text-xs text-center font-semibold text-gray-700 border-t border-gray-200 leading-normal">
           <div className="space-y-16">
             <span>Mengetahui,<br /><b>Ketua Komite Sekolah</b></span>
             <div className="block">
-              <span className="border-t border-blue-100 pt-1.5 px-6 font-bold uppercase block max-w-xs mx-auto text-[11px]">
+              <span className="border-t border-[#003049] pt-1.5 px-6 font-bold uppercase block max-w-xs mx-auto text-[11px]">
                 Dr. H. Muhammad Ramli
               </span>
             </div>
@@ -505,15 +688,15 @@ export default function Reports({ transactions, students, bills, classes }: Repo
           <div className="hidden md:block space-y-16">
             <span>Menyetujui,<br /><b>Kepala Sekolah Mandiri</b></span>
             <div className="block">
-              <span className="border-t border-blue-100 pt-1.5 px-6 font-bold uppercase block max-w-xs mx-auto text-[11px]">
+              <span className="border-t border-[#003049] pt-1.5 px-6 font-bold uppercase block max-w-xs mx-auto text-[11px]">
                 Drs. Heru Wijayanto, M.Pd
               </span>
             </div>
           </div>
           <div className="space-y-16">
-            <span>Jakarta, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br /><b>Bendahara Komite</b></span>
+            <span>Jakarta, 30 Juni {eduSemesters.endYear}<br /><b>Bendahara Komite</b></span>
             <div className="block">
-              <span className="border-t border-blue-100 pt-1.5 px-6 font-bold uppercase block max-w-xs mx-auto text-[11px]">
+              <span className="border-t border-[#003049] pt-1.5 px-6 font-bold uppercase block max-w-xs mx-auto text-[11px]">
                 Sri Wahyuli, S.E
               </span>
             </div>

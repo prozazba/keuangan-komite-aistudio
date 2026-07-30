@@ -307,15 +307,21 @@ export function getAcademicYearFromDate(dateStr: string): string {
 }
 
 /**
- * Returns a list of 12 periods (months) for a given academic year.
+ * Returns a list of 12 periods (months) for a given academic year in Educational Calendar order (July to June).
  * E.g., for "2025/2026" returns ["Juli 2025", ..., "Juni 2026"]
  */
 export function getPeriodsForAcademicYear(academicYear: string): string[] {
   const parts = academicYear.split('/');
-  if (parts.length !== 2) return ['April 2026', 'Mei 2026'];
+  if (parts.length !== 2) return [
+    'Juli 2025', 'Agustus 2025', 'September 2025', 'Oktober 2025', 'November 2025', 'Desember 2025',
+    'Januari 2026', 'Februari 2026', 'Maret 2026', 'April 2026', 'Mei 2026', 'Juni 2026'
+  ];
   const startYear = parseInt(parts[0], 10);
   const endYear = parseInt(parts[1], 10);
-  if (isNaN(startYear) || isNaN(endYear)) return ['April 2026', 'Mei 2026'];
+  if (isNaN(startYear) || isNaN(endYear)) return [
+    'Juli 2025', 'Agustus 2025', 'September 2025', 'Oktober 2025', 'November 2025', 'Desember 2025',
+    'Januari 2026', 'Februari 2026', 'Maret 2026', 'April 2026', 'Mei 2026', 'Juni 2026'
+  ];
   
   return [
     `Juli ${startYear}`,
@@ -331,6 +337,41 @@ export function getPeriodsForAcademicYear(academicYear: string): string[] {
     `Mei ${endYear}`,
     `Juni ${endYear}`
   ];
+}
+
+/**
+ * Returns Semester breakdown info for an Academic Year (Kalender Pendidikan).
+ * Semester Ganjil: Juli - Desember (Start Year)
+ * Semester Genap: Januari - Juni (End Year)
+ */
+export function getEducationalSemesters(academicYear: string) {
+  const parts = academicYear.split('/');
+  const startYear = parseInt(parts[0], 10) || 2025;
+  const endYear = parseInt(parts[1], 10) || 2026;
+
+  return {
+    academicYear,
+    startYear,
+    endYear,
+    sem1Name: `Semester Ganjil (Juli ${startYear} - Desember ${startYear})`,
+    sem2Name: `Semester Genap (Januari ${endYear} - Juni ${endYear})`,
+    sem1Months: [
+      `Juli ${startYear}`, `Agustus ${startYear}`, `September ${startYear}`,
+      `Oktober ${startYear}`, `November ${startYear}`, `Desember ${startYear}`
+    ],
+    sem2Months: [
+      `Januari ${endYear}`, `Februari ${endYear}`, `Maret ${endYear}`,
+      `April ${endYear}`, `Mei ${endYear}`, `Juni ${endYear}`
+    ],
+    sem1Prefixes: [
+      `${startYear}-07`, `${startYear}-08`, `${startYear}-09`,
+      `${startYear}-10`, `${startYear}-11`, `${startYear}-12`
+    ],
+    sem2Prefixes: [
+      `${endYear}-01`, `${endYear}-02`, `${endYear}-03`,
+      `${endYear}-04`, `${endYear}-05`, `${endYear}-06`
+    ]
+  };
 }
 
 export function getDueDateForPeriod(period: string): string {
