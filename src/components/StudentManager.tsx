@@ -32,6 +32,76 @@ export default function StudentManager({
   // Detail Modal State
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<Student | null>(null);
 
+  // Payment Form Trigger State from Student Detail "Belum Lunas" / "Cicilan"
+  const [selectedPaymentBill, setSelectedPaymentBill] = useState<StudentBill | null>(null);
+  const [payAmount, setPayAmount] = useState<number>(150000);
+  const [payMethod, setPayMethod] = useState<'Cash' | 'Transfer Bank' | 'E-Wallet'>('Transfer Bank');
+  const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().substring(0, 10));
+  const [payNote, setPayNote] = useState<string>('');
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState<boolean>(false);
+
+  const handleOpenPaymentModal = (bill: StudentBill) => {
+    const sisa = bill.amountRequired - bill.amountPaid;
+    setSelectedPaymentBill(bill);
+    setPayAmount(sisa > 0 ? sisa : bill.amountRequired);
+    setPayMethod('Transfer Bank');
+    setPayDate(new Date().toISOString().substring(0, 10));
+    setPayNote('');
+  };
+
+  const handleProcessPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPaymentBill) return;
+    if (payAmount <= 0) {
+      alert("Masukkan nominal pembayaran yang valid!");
+      return;
+    }
+
+    setIsSubmittingPayment(true);
+    try {
+      const batch = writeBatch(db);
+      const newPaidAmount = selectedPaymentBill.amountPaid + payAmount;
+      const remains = selectedPaymentBill.amountRequired - newPaidAmount;
+      const newStatus = remains <= 0 ? 'paid' : (newPaidAmount > 0 ? 'partially_paid' : 'unpaid');
+
+      // 1. Update bill
+      const billRef = doc(db, 'student_bills', selectedPaymentBill.id);
+      batch.update(billRef, {
+        amountPaid: Math.min(newPaidAmount, selectedPaymentBill.amountRequired),
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+
+      // 2. Add transaction
+      const txId = `tx_iuran_${Date.now()}`;
+      const txRef = doc(db, 'transactions', txId);
+      batch.set(txRef, {
+        id: txId,
+        date: payDate,
+        type: 'income',
+        category: 'Iuran Bulanan',
+        amount: payAmount,
+        description: `Iuran ${selectedPaymentBill.period} - ${selectedPaymentBill.studentName} (${selectedPaymentBill.studentClass}) ${payNote ? `• [${payNote}]` : ''}`,
+        studentId: selectedPaymentBill.studentId,
+        studentName: selectedPaymentBill.studentName,
+        classId: selectedPaymentBill.studentClass,
+        period: selectedPaymentBill.period,
+        paymentMethod: payMethod,
+        recordedBy: 'admin@komite.id',
+        createdAt: new Date().toISOString()
+      });
+
+      await batch.commit();
+      alert(`Pembayaran iuran ${formatIDR(payAmount)} untuk ${selectedPaymentBill.studentName} berhasil disimpan!`);
+      setSelectedPaymentBill(null);
+    } catch (err) {
+      console.error("Gagal memproses pembayaran:", err);
+      alert("Gagal memproses pembayaran. Silakan coba lagi.");
+    } finally {
+      setIsSubmittingPayment(false);
+    }
+  };
+
   // Form State
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAddClassForm, setShowAddClassForm] = useState(false);
@@ -1514,102 +1584,132 @@ export default function StudentManager({
       )}
 
       {/* Filter and Search Container */}
-      <div className="bg-white/90 backdrop-blur-xs rounded-3xl p-4 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between text-left">
-        <div className="relative w-full md:max-w-md">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-            <Search className="h-4 w-4" />
-          </span>
-          <input
-            type="text"
-            placeholder="Cari nama, NISN, atau nama wali..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50/80 focus:bg-white focus:ring-2 focus:ring-[#003049]/20 rounded-2xl pl-10 pr-4 py-2.5 text-xs transition-all outline-none border-none shadow-2xs font-medium"
-          />
+      <div className="bg-white/90 backdrop-blur-xs rounded-3xl p-4 shadow-xs space-y-3 text-left">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:max-w-md">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
+              <Search className="h-4 w-4" />
+            </span>
+            <input
+              type="text"
+              placeholder="Cari nama, NISN, atau nama wali..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50/80 focus:bg-white focus:ring-2 focus:ring-[#003049]/20 rounded-2xl pl-10 pr-8 py-2.5 text-xs transition-all outline-none border border-slate-100 shadow-2xs font-medium text-slate-800"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="Hapus pencarian"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-2 items-center w-full md:w-auto">
+            <Filter className="h-4 w-4 text-[#003049] shrink-0" />
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="w-full md:w-52 bg-slate-50/80 focus:bg-white rounded-2xl px-3 py-2.5 text-xs outline-none border border-slate-100 shadow-2xs font-extrabold text-slate-800 cursor-pointer"
+            >
+              <option value="All">Semua Tingkat Kelas ({students.length} Siswa)</option>
+              {classes.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="flex gap-2 items-center w-full md:w-auto">
-          <Filter className="h-4 w-4 text-[#003049] hidden md:inline" />
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full md:w-48 bg-slate-50/80 focus:bg-white rounded-2xl px-3 py-2.5 text-xs outline-none border-none shadow-2xs font-extrabold text-slate-800"
-          >
-            <option value="All">Semua Tingkat Kelas</option>
-            {classes.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
+        {/* Active Filter Summary */}
+        {(searchQuery || selectedClass !== 'All') && (
+          <div className="flex items-center justify-between text-xs text-[#003049] bg-sky-50/80 px-3.5 py-2 rounded-2xl border border-sky-100 font-medium">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="h-2 w-2 rounded-full bg-[#003049] animate-pulse shrink-0"></span>
+              <span className="truncate">
+                Ditemukan <strong>{filteredStudents.length}</strong> dari {students.length} siswa
+                {searchQuery && <> dengan kata kunci "<strong>{searchQuery}</strong>"</>}
+                {selectedClass !== 'All' && <> di kelas <strong>{selectedClass}</strong></>}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); setSelectedClass('All'); }}
+              className="text-xs font-bold text-[#003049] hover:underline cursor-pointer shrink-0 ml-2"
+            >
+              Reset Filter
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Roster Table Layout */}
       <div className="bg-white/90 backdrop-blur-xs rounded-3xl shadow-sm overflow-hidden text-left">
-        <div className="overflow-x-auto">
+        <div className="w-full">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-gradient-to-r from-[#f7fafc] to-[#e6f0f6] text-xs font-extrabold text-[#003049] uppercase tracking-wider">
-                <th className="px-6 py-4">Data Siswa / NISN</th>
-                <th className="px-6 py-4">Tingkat Kelas</th>
-                <th className="px-6 py-4">Hubungan Orang Tua / Wali</th>
-                <th className="px-6 py-4">Email & WhatsApp</th>
-                <th className="px-6 py-4">Status Roster</th>
-                <th className="px-6 py-4 text-center">Aksi / Tindakan</th>
+              <tr className="bg-gradient-to-r from-[#f7fafc] to-[#e6f0f6] text-[11px] font-extrabold text-[#003049] uppercase tracking-wider">
+                <th className="px-3.5 py-3">Nama Siswa & NISN</th>
+                <th className="px-3.5 py-3">Kelas</th>
+                <th className="px-3.5 py-3">Wali Murid & Kontak</th>
+                <th className="px-3.5 py-3 text-center">Status</th>
+                <th className="px-3.5 py-3 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100/60 text-sm text-slate-700">
+            <tbody className="divide-y divide-slate-100/60 text-xs text-slate-700">
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => {
-                  const studentOutstandingDues = bills
-                    .filter(b => b.studentId === student.id && b.status !== 'paid')
-                    .reduce((acc, b) => acc + (b.amountRequired - b.amountPaid), 0);
-
                   return (
-                    <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4.5">
-                        <div className="font-semibold text-gray-900">{student.name}</div>
-                        <div className="text-xs font-mono text-gray-500 mt-0.5">NISN: {student.studentId}</div>
+                    <tr key={student.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-3.5 py-3">
+                        <div className="font-bold text-slate-900 text-xs">{student.name}</div>
+                        <div className="text-[11px] font-mono text-slate-500 mt-0.5">NISN: {student.studentId}</div>
                       </td>
-                      <td className="px-6 py-4.5">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100/60">
+                      <td className="px-3.5 py-3 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                           {student.classId}
                         </span>
                       </td>
-                      <td className="px-6 py-4.5">
-                        <div className="text-gray-800">{student.parentsName}</div>
-                        <span className="text-xs text-gray-400">Status: Wali Sah</span>
-                      </td>
-                      <td className="px-6 py-4.5">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-xs text-gray-600 flex items-center gap-1">
-                            <Mail className="h-3 w-3 text-gray-400" />
-                            {student.parentsEmail}
-                          </span>
-                          <span className="text-xs text-gray-600 flex items-center gap-1">
-                            <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full inline-block"></span>
-                            WA: {student.parentsPhone}
-                          </span>
+                      <td className="px-3.5 py-3">
+                        <div className="font-semibold text-slate-800 text-xs">{student.parentsName || '-'}</div>
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-slate-500 mt-0.5">
+                          {student.parentsPhone && (
+                            <span className="inline-flex items-center gap-1 font-mono">
+                              <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full inline-block shrink-0"></span>
+                              {student.parentsPhone}
+                            </span>
+                          )}
+                          {student.parentsEmail && (
+                            <span className="inline-flex items-center gap-1 text-slate-500 truncate max-w-[200px]" title={student.parentsEmail}>
+                              <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{student.parentsEmail}</span>
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-6 py-4.5">
+                      <td className="px-3.5 py-3 whitespace-nowrap text-center">
                         <button
                           onClick={() => toggleStatus(student)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold cursor-pointer transition-colors ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold cursor-pointer transition-colors ${
                             student.status === 'active'
-                              ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100/60'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-250/20'
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
                           }`}
+                          title="Klik untuk mengubah status aktif/nonaktif"
                         >
-                          <span className={`h-1.5 w-1.5 rounded-full ${student.status === 'active' ? 'bg-indigo-600' : 'bg-slate-500'}`}></span>
+                          <span className={`h-1.5 w-1.5 rounded-full ${student.status === 'active' ? 'bg-emerald-600' : 'bg-slate-500'}`}></span>
                           {student.status === 'active' ? 'Aktif' : 'Nonaktif'}
                         </button>
                       </td>
-                      <td className="px-6 py-4.5">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <td className="px-3.5 py-3 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => setSelectedStudentDetail(student)}
-                            className="p-1 px-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold border border-indigo-100/80 cursor-pointer"
-                            title="Lihat Detail Profil, Tunggakan, & Transaksi Siswa"
+                            className="p-1 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors inline-flex items-center gap-1 text-[11px] font-bold border border-indigo-100 cursor-pointer"
+                            title="Lihat Detail Profil & Transaksi"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             Detail
@@ -1619,19 +1719,17 @@ export default function StudentManager({
                             <>
                               <button
                                 onClick={() => handleEdit(student)}
-                                className="p-1 px-2 hover:bg-gray-100 rounded-md text-gray-600 hover:text-indigo-600 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                className="p-1 px-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-indigo-600 transition-colors inline-flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                                 title="Edit data siswa"
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
-                                Edit
                               </button>
                               <button
                                 onClick={() => handleDelete(student.id)}
-                                className="p-1 px-2 hover:bg-red-50 rounded-md text-gray-600 hover:text-red-600 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                className="p-1 px-1.5 hover:bg-rose-50 rounded-lg text-slate-600 hover:text-rose-600 transition-colors inline-flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                                 title="Hapus data siswa"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
-                                Hapus
                               </button>
                             </>
                           )}
@@ -1642,7 +1740,7 @@ export default function StudentManager({
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     <UserPlus className="h-10 w-10 mx-auto opacity-40 mb-3 text-gray-500" />
                     Belum ada data siswa ditemukan. Silakan tambahkan siswa atau load data percontohan jika kosong.
                   </td>
@@ -1770,13 +1868,23 @@ export default function StudentManager({
                                     <CheckCircle2 className="h-3 w-3" /> Lunas
                                   </span>
                                 ) : bill.status === 'partially_paid' ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] bg-amber-100/80 text-amber-800 px-2.5 py-1 rounded-full font-extrabold shadow-2xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPaymentModal(bill)}
+                                    className="inline-flex items-center gap-1 text-[10px] bg-amber-100/80 hover:bg-amber-200 text-amber-800 px-2.5 py-1 rounded-full font-extrabold shadow-2xs cursor-pointer transition-all active:scale-95"
+                                    title="Klik untuk membuka form pembayaran cicilan"
+                                  >
                                     <AlertCircle className="h-3 w-3" /> Cicilan
-                                  </span>
+                                  </button>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] bg-rose-100/80 text-rose-800 px-2.5 py-1 rounded-full font-extrabold shadow-2xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPaymentModal(bill)}
+                                    className="inline-flex items-center gap-1 text-[10px] bg-rose-100/80 hover:bg-rose-200 text-rose-800 px-2.5 py-1 rounded-full font-extrabold shadow-2xs cursor-pointer transition-all active:scale-95"
+                                    title="Klik untuk membuka form pembayaran"
+                                  >
                                     <AlertCircle className="h-3 w-3" /> Belum Lunas
-                                  </span>
+                                  </button>
                                 )}
                               </td>
                             </tr>
@@ -1889,6 +1997,127 @@ export default function StudentManager({
           </div>
         );
       })()}
+
+    {/* Modal Form Pembayaran (Triggered from Belum Lunas / Cicilan) */}
+    {selectedPaymentBill && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[80] animate-fade-in">
+        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 border border-slate-100">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-2xl">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-slate-800">Form Pembayaran Iuran</h3>
+                <p className="text-xs text-slate-500 font-medium">Proses pembayaran untuk siswa bersangkutan</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedPaymentBill(null)}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Student Profile Card */}
+          <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-200/60">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Siswa</span>
+                <span className="text-sm font-black text-slate-800 block">{selectedPaymentBill.studentName}</span>
+                <span className="text-xs font-mono font-bold text-slate-500">NISN: {selectedPaymentBill.studentId} • {selectedPaymentBill.studentClass}</span>
+              </div>
+              <span className={`px-2.5 py-1 font-bold text-[10px] rounded-full border ${
+                selectedPaymentBill.status === 'partially_paid' 
+                  ? 'bg-amber-100 text-amber-800 border-amber-200' 
+                  : 'bg-rose-100 text-rose-800 border-rose-200'
+              }`}>
+                {selectedPaymentBill.status === 'partially_paid' ? 'Cicilan' : 'Belum Lunas'}
+              </span>
+            </div>
+            <div className="pt-2 border-t border-slate-200/60 flex justify-between text-xs font-medium text-slate-600">
+              <span>Periode: <strong>{selectedPaymentBill.period}</strong></span>
+              <span>Sisa Tagihan: <strong className="text-rose-600">{formatIDR(selectedPaymentBill.amountRequired - selectedPaymentBill.amountPaid)}</strong></span>
+            </div>
+          </div>
+
+          {/* Form Input */}
+          <form onSubmit={handleProcessPayment} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Nominal Pembayaran (Rp) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-slate-400">Rp</span>
+                <input
+                  type="number"
+                  min="1000"
+                  required
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(Number(e.target.value))}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl pl-10 pr-3 py-2.5 text-sm font-bold text-slate-800 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Metode Bayar</label>
+                <select
+                  value={payMethod}
+                  onChange={(e) => setPayMethod(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                >
+                  <option value="Transfer Bank">Transfer Bank</option>
+                  <option value="Cash">Tunai / Cash</option>
+                  <option value="E-Wallet">E-Wallet (QRIS/GoPay)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tanggal Bayar</label>
+                <input
+                  type="date"
+                  required
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Catatan / Keterangan (Opsional)</label>
+              <input
+                type="text"
+                placeholder="Cth: Lunas via Transfer BCA"
+                value={payNote}
+                onChange={(e) => setPayNote(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl px-3.5 py-2 text-xs outline-none text-slate-800"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentBill(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingPayment}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {isSubmittingPayment ? 'Memproses...' : 'Simpan Pembayaran'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
 
     </div>
   );

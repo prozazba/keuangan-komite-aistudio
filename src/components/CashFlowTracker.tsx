@@ -314,39 +314,39 @@ export default function CashFlowTracker({
     <div id="cash-flow-tracker-section" className="space-y-6">
       
       {/* 3-Bento Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
         {/* Total Incoming */}
-        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-3xl p-5 flex items-center justify-between shadow-xs">
-          <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-extrabold text-emerald-800/80 uppercase tracking-widest block">Total Pendapatan Komite</span>
-            <span className="text-xl font-black text-emerald-700 block font-mono">{formatIDR(aggregateStats.totalIncome)}</span>
-            <p className="text-[11px] text-slate-500 font-medium">Dari iuran wali murid & sumbangan</p>
+        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex items-center justify-between shadow-xs transition-all hover:shadow-sm">
+          <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-emerald-800/80 tracking-wide block truncate">Total Pendapatan Komite</span>
+            <span className="text-base sm:text-lg lg:text-xl font-black text-emerald-700 block font-mono truncate" title={formatIDR(aggregateStats.totalIncome)}>{formatIDR(aggregateStats.totalIncome)}</span>
+            <p className="text-[11px] text-slate-500 font-medium truncate">Dari iuran wali murid & sumbangan</p>
           </div>
-          <div className="h-11 w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shadow-2xs">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0 shadow-2xs">
             <ArrowDownLeft className="h-5 w-5" />
           </div>
         </div>
 
         {/* Total Outgoing */}
-        <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] rounded-3xl p-5 flex items-center justify-between shadow-xs">
-          <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-extrabold text-[#780000]/80 uppercase tracking-widest block">Total Pengeluaran</span>
-            <span className="text-xl font-black text-[#c1121f] block font-mono">{formatIDR(aggregateStats.totalExpense)}</span>
-            <p className="text-[11px] text-slate-500 font-medium">Pembiayaan fasilitasi & acara</p>
+        <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex items-center justify-between shadow-xs transition-all hover:shadow-sm">
+          <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-[#780000]/80 tracking-wide block truncate">Total Pengeluaran</span>
+            <span className="text-base sm:text-lg lg:text-xl font-black text-[#c1121f] block font-mono truncate" title={formatIDR(aggregateStats.totalExpense)}>{formatIDR(aggregateStats.totalExpense)}</span>
+            <p className="text-[11px] text-slate-500 font-medium truncate">Pembiayaan fasilitasi & acara</p>
           </div>
-          <div className="h-11 w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shadow-2xs">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shrink-0 shadow-2xs">
             <ArrowUpRight className="h-5 w-5" />
           </div>
         </div>
 
         {/* Balance Current */}
-        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-3xl p-5 flex items-center justify-between shadow-xs">
-          <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-extrabold text-[#003049]/70 uppercase tracking-widest block">Sisa Saldo Kas Komite</span>
-            <span className="text-xl font-black text-[#003049] block font-mono">{formatIDR(aggregateStats.netBalance)}</span>
-            <p className="text-[11px] text-[#003049]/80 font-bold whitespace-nowrap">Buku Kas Transparan & Aktif</p>
+        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex items-center justify-between shadow-xs transition-all hover:shadow-sm sm:col-span-2 lg:col-span-1">
+          <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-[#003049]/70 tracking-wide block truncate">Sisa Saldo Kas Komite</span>
+            <span className="text-base sm:text-lg lg:text-xl font-black text-[#003049] block font-mono truncate" title={formatIDR(aggregateStats.netBalance)}>{formatIDR(aggregateStats.netBalance)}</span>
+            <p className="text-[11px] text-[#003049]/80 font-bold truncate">Buku Kas Transparan & Aktif</p>
           </div>
-          <div className="h-11 w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shadow-2xs">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shrink-0 shadow-2xs">
             <CreditCard className="h-5 w-5" />
           </div>
         </div>
@@ -652,9 +652,9 @@ export default function CashFlowTracker({
       {/* Ledger Table Section */}
       <div className="bg-white rounded-2xl border border-gray-150 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
+          <table className="w-full border-collapse text-left min-w-[760px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 <th className="px-6 py-4">Tanggal / Waktu</th>
                 <th className="px-6 py-4">Kategori & Bukti</th>
                 <th className="px-6 py-4">Keterangan Transaksi</th>

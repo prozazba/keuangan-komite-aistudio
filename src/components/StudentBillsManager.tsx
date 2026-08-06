@@ -458,35 +458,35 @@ export default function StudentBillsManager({
     <div id="student-bills-manager-module font-sans" className="space-y-6">
       
       {/* 1. VISUAL STATISTICS DASHBOARD HEADER */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         
         {/* Total Target Card */}
-        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-3xl p-5 shadow-xs flex items-center justify-between text-left">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-[#003049]/70 uppercase tracking-widest block font-sans">Kebutuhan Anggaran Iuran</span>
-            <span className="text-lg font-black text-[#003049] block font-mono">{formatIDR(billsStats.totalTarget)}</span>
-            <span className="text-[10px] text-slate-500 font-semibold block">Dari total {billsStats.totalCount} berkas tertagih</span>
+        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center justify-between text-left transition-all hover:shadow-sm">
+          <div className="space-y-1 flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-[#003049]/70 tracking-wide block truncate">Kebutuhan Anggaran Iuran</span>
+            <span className="text-base sm:text-lg lg:text-xl font-black text-[#003049] block font-mono truncate" title={formatIDR(billsStats.totalTarget)}>{formatIDR(billsStats.totalTarget)}</span>
+            <span className="text-[10px] text-slate-500 font-medium block truncate">Total {billsStats.totalCount} berkas tertagih</span>
           </div>
-          <div className="h-11 w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shadow-2xs">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shrink-0 shadow-2xs">
             <ClipboardList className="h-5 w-5" />
           </div>
         </div>
 
         {/* Total Collected Card */}
-        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-3xl p-5 shadow-xs text-left">
-          <div className="flex items-center justify-between mb-2">
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-extrabold text-emerald-800/80 uppercase tracking-widest block font-sans">Iuran Telah Diterima</span>
-              <span className="text-lg font-black text-emerald-700 block font-mono">+{formatIDR(billsStats.totalPaid)}</span>
+        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs text-left transition-all hover:shadow-sm">
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <span className="text-xs font-semibold text-emerald-800/80 tracking-wide block truncate">Iuran Telah Diterima</span>
+              <span className="text-base sm:text-lg lg:text-xl font-black text-emerald-700 block font-mono truncate" title={`+${formatIDR(billsStats.totalPaid)}`}>+{formatIDR(billsStats.totalPaid)}</span>
             </div>
-            <div className="h-10 w-10 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shadow-2xs">
+            <div className="h-10 w-10 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0 shadow-2xs">
               <CheckCircle2 className="h-5 w-5" />
             </div>
           </div>
           {/* Progress bar info */}
           <div className="space-y-1.5 pt-1.5 border-t border-emerald-100/60">
             <div className="flex justify-between text-[10px] text-slate-600 font-bold">
-              <span>Rasio Likuiditas Tagihan</span>
+              <span>Rasio Likuiditas</span>
               <span className="text-emerald-700 font-extrabold">{billsStats.collectionPercentage}%</span>
             </div>
             <div className="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden">
@@ -499,30 +499,30 @@ export default function StudentBillsManager({
         </div>
 
         {/* Remaining Dues Outstanding Card */}
-        <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] rounded-3xl p-5 shadow-xs flex items-center justify-between text-left">
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-[#780000]/80 uppercase tracking-widest block font-sans">Sisa Piutang Berjalan</span>
-            <span className="text-lg font-black text-[#c1121f] block font-mono">{formatIDR(billsStats.totalOutstanding)}</span>
-            <span className="text-[10px] text-slate-500 font-semibold block">Wajib ditagih & direkonsiliasi</span>
+        <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center justify-between text-left transition-all hover:shadow-sm">
+          <div className="space-y-1 flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-[#780000]/80 tracking-wide block truncate">Sisa Piutang Berjalan</span>
+            <span className="text-base sm:text-lg lg:text-xl font-black text-[#c1121f] block font-mono truncate" title={formatIDR(billsStats.totalOutstanding)}>{formatIDR(billsStats.totalOutstanding)}</span>
+            <span className="text-[10px] text-slate-500 font-medium block truncate">Wajib ditagih & direkonsiliasi</span>
           </div>
-          <div className="h-11 w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shadow-2xs">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shrink-0 shadow-2xs">
             <AlertCircle className="h-5 w-5" />
           </div>
         </div>
 
         {/* Distribution Indicator */}
-        <div className="bg-gradient-to-br from-white via-[#fffbeb] to-[#fdf0d5]/60 rounded-3xl p-5 shadow-xs flex items-center justify-between text-left">
-          <div className="space-y-1.5 w-full">
-            <span className="text-[10px] font-extrabold text-amber-900/80 uppercase tracking-widest block font-sans">Distribusi Status Tagihan</span>
-            <div className="flex gap-2 text-[10px] font-bold">
-              <div className="flex-1 bg-emerald-100/80 text-emerald-800 p-1.5 rounded-xl text-center shadow-2xs">
-                <span className="block font-black">{billsStats.paidCount}</span> Lunas
+        <div className="bg-gradient-to-br from-white via-[#fffbeb] to-[#fdf0d5]/60 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center justify-between text-left transition-all hover:shadow-sm">
+          <div className="space-y-1.5 w-full min-w-0">
+            <span className="text-xs font-semibold text-amber-900/80 tracking-wide block truncate">Distribusi Status Tagihan</span>
+            <div className="flex gap-1.5 text-[10px] font-bold">
+              <div className="flex-1 bg-emerald-100/80 text-emerald-800 p-1.5 rounded-xl text-center shadow-2xs min-w-0">
+                <span className="block font-black truncate">{billsStats.paidCount}</span> Lunas
               </div>
-              <div className="flex-1 bg-amber-100/80 text-amber-900 p-1.5 rounded-xl text-center shadow-2xs">
-                <span className="block font-black">{billsStats.partialCount}</span> Partial
+              <div className="flex-1 bg-amber-100/80 text-amber-900 p-1.5 rounded-xl text-center shadow-2xs min-w-0">
+                <span className="block font-black truncate">{billsStats.partialCount}</span> Partial
               </div>
-              <div className="flex-1 bg-rose-100/80 text-rose-900 p-1.5 rounded-xl text-center shadow-2xs">
-                <span className="block font-black">{billsStats.unpaidCount}</span> Belum
+              <div className="flex-1 bg-rose-100/80 text-rose-900 p-1.5 rounded-xl text-center shadow-2xs min-w-0">
+                <span className="block font-black truncate">{billsStats.unpaidCount}</span> Belum
               </div>
             </div>
           </div>
@@ -808,29 +808,29 @@ export default function StudentBillsManager({
 
       {/* 5. MULTI-SELECT COLLECTIVE BATCH PAYMENT BANNER */}
       {selectedBillIds.length > 0 && (
-        <div className="bg-amber-500 text-amber-950 px-5 py-3 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 font-bold text-xs shadow-md border border-amber-400">
-          <div className="flex items-center gap-2">
+        <div className="bg-amber-500 text-amber-950 px-4 sm:px-5 py-3 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 font-bold text-xs shadow-md border border-amber-400 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <CheckSquare className="h-5 w-5 text-amber-950 shrink-0" />
-            <span>
+            <span className="leading-snug">
               Ketuk untuk memproses <strong className="text-sm font-black underline">{selectedBillIds.length} tagihan siswa</strong> secara kolektif dengan Status Lunas Tunai.
             </span>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap w-full md:w-auto justify-end">
             <button
               type="button"
               onClick={() => setSelectedBillIds([])}
-              className="bg-amber-650 hover:bg-amber-700 bg-opacity-20 text-amber-950 border border-amber-950 border-opacity-20 py-2 px-4 rounded-xl font-bold hover:bg-opacity-30 cursor-pointer text-[11px] transition-all"
+              className="bg-amber-950/20 hover:bg-amber-950/30 text-amber-950 border border-amber-950/20 py-2 px-3 rounded-xl font-bold cursor-pointer text-[11px] transition-all whitespace-nowrap"
             >
               Batalkan Pilihan
             </button>
             <button
               type="button"
               onClick={handleBulkCollectivePayment}
-              className="bg-amber-950 hover:bg-black text-white shrink-0 py-2 px-4.5 rounded-xl font-extrabold cursor-pointer border-none shadow-sm flex items-center gap-1.5 transition-all text-[11px]"
+              className="bg-amber-950 hover:bg-black text-white shrink-0 py-2 px-3.5 rounded-xl font-extrabold cursor-pointer border-none shadow-sm flex items-center gap-1.5 transition-all text-[11px] whitespace-nowrap"
             >
-              <CreditCard className="h-4 w-4" />
-              Proses Bayar Kolektif ({selectedBillIds.length} Siswa)
+              <CreditCard className="h-4 w-4 shrink-0" />
+              <span>Proses Bayar Kolektif ({selectedBillIds.length} Siswa)</span>
             </button>
           </div>
         </div>
@@ -838,11 +838,11 @@ export default function StudentBillsManager({
 
       {/* 6. PRIMARY BILLING RECORDS GRID TABLE */}
       <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-2xs text-left">
-        <div className="overflow-x-auto min-h-[300px]">
-          <table className="w-full text-xs text-left text-slate-600">
-            <thead className="bg-[#f8fafc] border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-widest font-extrabold font-sans">
-              <tr>
-                <th className="py-3 px-4 w-12 text-center no-print border-r border-slate-100">
+        <div className="overflow-x-auto min-h-[300px] scrollbar-thin">
+          <table className="w-full text-xs text-left text-slate-600 min-w-[800px]">
+            <thead className="bg-[#f8fafc] border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-wider font-extrabold font-sans">
+              <tr className="whitespace-nowrap">
+                <th className="py-3 px-3 w-10 text-center no-print border-r border-slate-100">
                   <input
                     type="checkbox"
                     checked={
@@ -858,10 +858,10 @@ export default function StudentBillsManager({
                 <th className="py-3.5 px-3">Bulan Atribusi</th>
                 <th className="py-3.5 px-3">Batas Tempo</th>
                 <th className="py-3.5 px-3 text-right">Nilai Tagihan</th>
-                <th className="py-3.5 px-3 text-right bg-[#fcfdfd]">Jumlah Terbayar</th>
+                <th className="py-3.5 px-3 text-right bg-[#fcfdfd]">Terbayar</th>
                 <th className="py-3.5 px-3 text-right">Sisa Piutang</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center no-print">Tindakan</th>
+                <th className="py-3.5 px-3 text-center">Status</th>
+                <th className="py-3.5 px-3 text-center no-print">Tindakan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -926,14 +926,24 @@ export default function StudentBillsManager({
                           </span>
                         )}
                         {bill.status === 'partially_paid' && (
-                          <span className="inline-flex items-center gap-1 text-[9px] bg-amber-50 text-amber-700 border border-amber-150 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPayment(bill)}
+                            className="inline-flex items-center gap-1 text-[9px] bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider cursor-pointer transition-all active:scale-95 shadow-3xs"
+                            title="Klik untuk membuka form pembayaran"
+                          >
                             Partial
-                          </span>
+                          </button>
                         )}
                         {bill.status === 'unpaid' && (
-                          <span className="inline-flex items-center gap-1 text-[9px] bg-rose-50 text-rose-700 border border-rose-150 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPayment(bill)}
+                            className="inline-flex items-center gap-1 text-[9px] bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider cursor-pointer transition-all active:scale-95 shadow-3xs"
+                            title="Klik untuk membuka form pembayaran"
+                          >
                             Belum Lunas
-                          </span>
+                          </button>
                         )}
                       </td>
 

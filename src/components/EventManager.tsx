@@ -272,26 +272,26 @@ export default function EventManager({ events, userRole }: EventManagerProps) {
                 </p>
 
                 {/* Financial breakdown block */}
-                <div className="bg-slate-50/70 rounded-xl p-3 border border-slate-100 space-y-3 text-left">
-                  <div className="grid grid-cols-2 gap-2 text-xs border-b border-slate-150/60 pb-2">
-                    <div>
-                      <span className="text-slate-400 block font-bold uppercase text-[8px] tracking-wide">Pemasukan Event</span>
-                      <span className="text-emerald-600 font-bold text-xs">{formatIDR(evt.actualIncome)}</span>
+                <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-200/80 space-y-2.5 text-left">
+                  <div className="space-y-1.5 border-b border-slate-200/80 pb-2 text-xs">
+                    <div className="flex items-center justify-between gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200/60">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wide shrink-0">Pemasukan Event</span>
+                      <span className="text-emerald-700 font-extrabold font-mono text-xs">{formatIDR(evt.actualIncome)}</span>
                     </div>
-                    <div>
-                      <span className="text-slate-400 block font-bold uppercase text-[8px] tracking-wide">Pengeluaran Event</span>
-                      <span className="text-rose-600 font-bold text-xs">{formatIDR(evt.actualExpense)}</span>
+                    <div className="flex items-center justify-between gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200/60">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wide shrink-0">Pengeluaran Event</span>
+                      <span className="text-rose-700 font-extrabold font-mono text-xs">{formatIDR(evt.actualExpense)}</span>
                     </div>
                   </div>
 
                   {/* Target budget progress bar */}
                   <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-500 font-bold uppercase text-[8px] tracking-wider">Target RAB: <b className="text-slate-900">{formatIDR(evt.budgetTarget)}</b></span>
-                      <span className="font-bold text-indigo-600 text-[10px]">{percentSpent}% Terpakai</span>
+                    <div className="flex justify-between items-center text-xs gap-2">
+                      <span className="text-slate-500 font-bold uppercase text-[9px] tracking-wider shrink-0">Target RAB: <b className="text-slate-900 font-mono">{formatIDR(evt.budgetTarget)}</b></span>
+                      <span className="font-extrabold text-indigo-700 text-[10px] shrink-0 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{percentSpent}% Terpakai</span>
                     </div>
                     {/* Progress track */}
-                    <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
                       <div 
                         className="bg-indigo-600 h-full rounded-full transition-all duration-500"
                         style={{ width: `${percentSpent}%` }}
@@ -300,9 +300,9 @@ export default function EventManager({ events, userRole }: EventManagerProps) {
                   </div>
 
                   {/* Net event balance */}
-                  <div className="flex justify-between items-center text-xs pt-1">
-                    <span className="text-gray-500 font-medium">Selisih Kas Acara:</span>
-                    <span className={`font-bold ${netSurplus >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-200/60">
+                    <span className="text-slate-600 font-medium shrink-0">Selisih Kas:</span>
+                    <span className={`font-extrabold font-mono ${netSurplus >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                       {formatIDR(netSurplus)} {netSurplus >= 0 ? '(Sisa)' : '(Defisit)'}
                     </span>
                   </div>

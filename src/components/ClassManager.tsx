@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { db, handleFirestoreError, OperationType, doc, setDoc, deleteDoc, writeBatch } from '../firebase';
 import { Student, StudentBill, SchoolClass } from '../types';
 import { 
   Plus, Search, Edit2, Trash2, Users, GraduationCap, 
   Building2, CheckCircle2, AlertCircle, X, ChevronRight, 
   ArrowUpDown, Filter, User, Layers, ShieldCheck, DollarSign,
-  UserPlus, Upload, Clipboard, FileText, FileCode
+  UserPlus, Upload, Clipboard, FileText, FileCode, LayoutGrid, List, CreditCard
 } from 'lucide-react';
 import { formatIDR, getPeriodsForAcademicYear, getDueDateForPeriod } from '../utils';
 
@@ -60,6 +60,95 @@ export default function ClassManager({
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedClassForRoster, setSelectedClassForRoster] = useState<string | null>(null);
+
+  // Payment Form Trigger State from Roster "Belum Lunas"
+  const [selectedPaymentStudent, setSelectedPaymentStudent] = useState<{ student: Student; bill?: StudentBill } | null>(null);
+  const [payAmount, setPayAmount] = useState<number>(150000);
+  const [payMethod, setPayMethod] = useState<'Cash' | 'Transfer Bank' | 'E-Wallet'>('Transfer Bank');
+  const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().substring(0, 10));
+  const [payNote, setPayNote] = useState<string>('');
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState<boolean>(false);
+
+  const handleOpenPaymentModal = (student: Student, bill?: StudentBill) => {
+    const targetBill = bill || bills.find(b => b.studentId === student.id || b.studentId === student.studentId);
+    const reqAmount = targetBill ? targetBill.amountRequired : 150000;
+    const paidAmount = targetBill ? targetBill.amountPaid : 0;
+    const sisa = reqAmount - paidAmount > 0 ? reqAmount - paidAmount : reqAmount;
+
+    setSelectedPaymentStudent({ student, bill: targetBill });
+    setPayAmount(sisa);
+    setPayMethod('Transfer Bank');
+    setPayDate(new Date().toISOString().substring(0, 10));
+    setPayNote('');
+  };
+
+  const handleProcessPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPaymentStudent) return;
+    if (payAmount <= 0) {
+      alert("Masukkan nominal pembayaran yang valid!");
+      return;
+    }
+
+    setIsSubmittingPayment(true);
+    try {
+      const { student, bill } = selectedPaymentStudent;
+      const batch = writeBatch(db);
+      const period = bill?.period || (getPeriodsForAcademicYear(selectedAcademicYear)[0] || 'Mei 2026');
+      const billId = bill?.id || `bill_${student.id}_${period.replace(/\s+/g, '_')}`;
+      const amountReq = bill?.amountRequired || 150000;
+      const previousPaid = bill?.amountPaid || 0;
+      const newPaidAmount = previousPaid + payAmount;
+      const remains = amountReq - newPaidAmount;
+      const newStatus = remains <= 0 ? 'paid' : (newPaidAmount > 0 ? 'partially_paid' : 'unpaid');
+
+      // 1. Update/set student_bills record
+      const billRef = doc(db, 'student_bills', billId);
+      batch.set(billRef, {
+        id: billId,
+        studentId: student.id,
+        studentName: student.name,
+        studentClass: student.classId,
+        parentsName: student.parentsName || 'Wali Murid',
+        parentsPhone: student.parentsPhone || '',
+        parentsEmail: student.parentsEmail || '',
+        period: period,
+        amountRequired: amountReq,
+        amountPaid: Math.min(newPaidAmount, amountReq),
+        status: newStatus,
+        dueDate: bill?.dueDate || getDueDateForPeriod(period),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      // 2. Add ledger transaction
+      const txId = `tx_iuran_${Date.now()}`;
+      const txRef = doc(db, 'transactions', txId);
+      batch.set(txRef, {
+        id: txId,
+        date: payDate,
+        type: 'income',
+        category: 'Iuran Bulanan',
+        amount: payAmount,
+        description: `Iuran ${period} - ${student.name} (${student.classId}) ${payNote ? `• [${payNote}]` : ''}`,
+        studentId: student.id,
+        studentName: student.name,
+        classId: student.classId,
+        period: period,
+        paymentMethod: payMethod,
+        recordedBy: 'admin@komite.id',
+        createdAt: new Date().toISOString()
+      });
+
+      await batch.commit();
+      alert(`Pembayaran iuran ${formatIDR(payAmount)} untuk ${student.name} berhasil disimpan!`);
+      setSelectedPaymentStudent(null);
+    } catch (err) {
+      console.error("Gagal memproses pembayaran:", err);
+      alert("Gagal memproses pembayaran. Silakan coba lagi.");
+    } finally {
+      setIsSubmittingPayment(false);
+    }
+  };
 
   // Quick Add Student in Roster Modal state
   const [showQuickAddStudent, setShowQuickAddStudent] = useState(false);
@@ -427,6 +516,21 @@ export default function ClassManager({
   // Editing state
   const [editingClassName, setEditingClassName] = useState<string | null>(null);
 
+  // Dynamically derive unique grade levels from class names
+  const availableGradeLevels = useMemo(() => {
+    const levelsSet = new Set<string>();
+    classes.forEach(c => {
+      const match = c.match(/^(Kelas\s+\d+|Tingkat\s+\d+|\d+)/i);
+      if (match) {
+        levelsSet.add(match[1]);
+      } else {
+        const firstWord = c.split(/[\s-]+/)[0];
+        if (firstWord) levelsSet.add(firstWord);
+      }
+    });
+    return Array.from(levelsSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [classes]);
+
   // Filtered list of classes
   const filteredClasses = classes.filter(cls => {
     const details = classDetailsMap[cls] || {};
@@ -694,105 +798,161 @@ export default function ClassManager({
       </div>
 
       {/* SUMMARY STAT CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-3xl p-5 shadow-xs flex items-center justify-between">
-          <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-extrabold text-[#003049]/70 uppercase tracking-widest block">Total Roster Kelas</span>
-            <span className="text-2xl font-black text-[#003049] block font-mono">{totalClassesCount} <span className="text-xs font-semibold text-slate-400">Kelas</span></span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+          <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-[#003049]/70 tracking-wide block truncate">Total Roster Kelas</span>
+            <span className="text-xl sm:text-2xl font-black text-[#003049] block font-mono truncate">{totalClassesCount} <span className="text-xs font-semibold text-slate-400">Kelas</span></span>
           </div>
-          <div className="h-11 w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shrink-0 shadow-2xs">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shrink-0 shadow-2xs">
             <Building2 className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-3xl p-5 shadow-xs flex items-center justify-between">
-          <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-extrabold text-emerald-800/80 uppercase tracking-widest block">Siswa Terdaftar (TA)</span>
-            <span className="text-2xl font-black text-emerald-700 block font-mono">{totalStudentsInYear} <span className="text-xs font-semibold text-slate-400">Anak</span></span>
+        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+          <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-emerald-800/80 tracking-wide block truncate">Siswa Terdaftar (TA)</span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-700 block font-mono truncate">{totalStudentsInYear} <span className="text-xs font-semibold text-slate-400">Anak</span></span>
           </div>
-          <div className="h-11 w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0 shadow-2xs">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0 shadow-2xs">
             <Users className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-2xs flex items-center justify-between">
-          <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Rata-Rata per Kelas</span>
-            <span className="text-2xl font-black text-slate-900 block font-mono">~{avgStudentsPerClass} <span className="text-xs font-semibold text-slate-400">Siswa</span></span>
+        <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xs flex items-center justify-between transition-all hover:shadow-sm">
+          <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-slate-500 tracking-wide block truncate">Rata-Rata per Kelas</span>
+            <span className="text-xl sm:text-2xl font-black text-slate-900 block font-mono truncate">~{avgStudentsPerClass} <span className="text-xs font-semibold text-slate-400">Siswa</span></span>
           </div>
-          <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shrink-0">
             <GraduationCap className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-2xs flex items-center justify-between">
-          <div className="space-y-0.5 text-left">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Total Piutang Iuran</span>
-            <span className="text-lg font-black text-slate-900 block font-mono">
+        <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xs flex items-center justify-between transition-all hover:shadow-sm">
+          <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+            <span className="text-xs font-semibold text-slate-500 tracking-wide block truncate">Total Piutang Iuran</span>
+            <span 
+              className="text-base sm:text-lg lg:text-xl font-black text-purple-700 block font-mono truncate"
+              title={formatIDR(bills.reduce((acc, b) => acc + (b.amountRequired - b.amountPaid), 0))}
+            >
               {formatIDR(bills.reduce((acc, b) => acc + (b.amountRequired - b.amountPaid), 0))}
             </span>
           </div>
-          <div className="h-10 w-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 shrink-0">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shrink-0">
             <DollarSign className="h-5 w-5" />
           </div>
         </div>
       </div>
 
       {/* FILTER & SEARCH CONTROL BAR */}
-      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row gap-4 items-center justify-between">
-        
-        {/* Search Bar */}
-        <div className="relative w-full md:max-w-xs">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-            <Search className="h-4 w-4" />
-          </span>
-          <input
-            type="text"
-            placeholder="Cari nama kelas atau wali kelas..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-100/80 focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-xs transition-all outline-none"
-          />
+      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          
+          {/* Search Bar */}
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none">
+              <Search className="h-4 w-4" />
+            </span>
+            <input
+              type="text"
+              placeholder="Cari nama kelas, wali kelas, atau korlas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200/80 focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-500 rounded-xl pl-10 pr-8 py-2 text-xs transition-all outline-none text-slate-800 placeholder:text-slate-400 font-medium"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="Hapus pencarian"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Controls: View Mode Toggle */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                  viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="Tampilan Kartu Grid"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                  viewMode === 'table' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="Tampilan Tabel Rincian"
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Grade Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Filter Tingkat:</span>
-          {['All', 'Kelas 7', 'Kelas 8', 'Kelas 9'].map(grade => (
+        {/* Quick Pills for Grade Level */}
+        {availableGradeLevels.length > 0 && (
+          <div className="flex items-center gap-1.5 pt-1 overflow-x-auto scrollbar-none text-xs border-t border-slate-100/80">
+            <span className="text-[11px] font-bold text-slate-400 shrink-0">Akses Cepat:</span>
             <button
-              key={grade}
-              onClick={() => setGradeFilter(grade)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                gradeFilter === grade 
-                  ? 'bg-indigo-600 text-white shadow-xs' 
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-100'
+              type="button"
+              onClick={() => setGradeFilter('All')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer shrink-0 ${
+                gradeFilter === 'All'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {grade === 'All' ? 'Semua Tingkat' : grade}
+              Semua
             </button>
-          ))}
-        </div>
+            {availableGradeLevels.map(grade => (
+              <button
+                key={grade}
+                type="button"
+                onClick={() => setGradeFilter(grade)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer shrink-0 ${
+                  gradeFilter === grade
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {grade}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* View mode toggle */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              viewMode === 'grid' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Kartu Grid
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              viewMode === 'table' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Tabel Rincian
-          </button>
-        </div>
-
+        {/* Active Filter Banner & Reset */}
+        {(searchQuery || gradeFilter !== 'All') && (
+          <div className="flex items-center justify-between text-xs text-indigo-900 bg-indigo-50/70 px-3.5 py-2 rounded-xl border border-indigo-100 font-medium">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse shrink-0"></span>
+              <span className="truncate">
+                Menampilkan <strong>{filteredClasses.length}</strong> dari {classes.length} kelas
+                {searchQuery && <> dengan kata kunci "<strong>{searchQuery}</strong>"</>}
+                {gradeFilter !== 'All' && <> di <strong>{gradeFilter}</strong></>}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); setGradeFilter('All'); }}
+              className="text-xs font-bold text-indigo-700 hover:text-indigo-900 hover:underline cursor-pointer shrink-0 ml-2"
+            >
+              Reset Filter
+            </button>
+          </div>
+        )}
       </div>
 
       {/* CLASS GRID OR TABLE VIEW */}
@@ -803,7 +963,7 @@ export default function ClassManager({
           <p className="text-xs text-slate-400">Coba ubah kata kunci pencarian atau tambahkan kelas baru.</p>
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredClasses.map(cls => {
             const stats = getClassStats(cls);
             const teacher = classDetailsMap[cls]?.teacher || 'Belum diatur';
@@ -812,19 +972,19 @@ export default function ClassManager({
             return (
               <div 
                 key={cls}
-                className="bg-white border border-slate-100 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between space-y-5 min-w-0"
               >
                 {/* Card Top Header */}
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-0.5 text-left">
-                      <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100/80">
+                <div className="space-y-3 min-w-0">
+                  <div className="flex items-start justify-between gap-3 min-w-0">
+                    <div className="space-y-1 text-left min-w-0 flex-1">
+                      <span className="text-xs font-black text-indigo-700 uppercase tracking-wider bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 inline-block">
                         {cls}
                       </span>
-                      <h3 className="text-base font-extrabold text-slate-900 pt-1.5 block">{cls}</h3>
+                      <h3 className="text-lg font-extrabold text-slate-900 truncate" title={cls}>{cls}</h3>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
                       {userRole === 'admin' && (
                         <>
                           <button
@@ -849,37 +1009,39 @@ export default function ClassManager({
                   </div>
 
                   {/* Teacher & Korlas Meta */}
-                  <div className="text-left space-y-1.5 pt-1 text-xs text-slate-500">
-                    <div className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Wali Kelas: <strong className="text-slate-700 font-semibold">{teacher}</strong></span>
+                  <div className="text-left space-y-2 pt-1 text-xs text-slate-600 bg-slate-50/80 p-3 rounded-xl border border-slate-200/70">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <User className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span className="text-slate-500 font-medium shrink-0">Wali:</span>
+                      <strong className="text-slate-800 font-bold truncate" title={teacher}>{teacher}</strong>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                      <span className="truncate">Koordinator Kelas (Korlas): <strong className="text-slate-700 font-semibold">{korlas}</strong></span>
+                    <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/60 min-w-0">
+                      <Users className="h-4 w-4 text-indigo-500 shrink-0" />
+                      <span className="text-slate-500 font-medium shrink-0">Korlas:</span>
+                      <strong className="text-slate-800 font-bold truncate" title={korlas}>{korlas}</strong>
                     </div>
                   </div>
                 </div>
 
                 {/* Progress Bar & Collection Stats */}
-                <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl space-y-2.5 text-left">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 text-indigo-600" />
+                <div className="bg-slate-50/90 border border-slate-200/80 p-4 rounded-xl space-y-3.5 text-left min-w-0">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="font-extrabold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5 shrink-0">
+                      <Users className="h-4 w-4 text-indigo-600" />
                       {stats.studentCount} Siswa
                     </span>
-                    <span className={`text-[11px] font-black font-mono px-2 py-0.5 rounded-md ${
-                      stats.percentagePaid >= 80 ? 'bg-emerald-100 text-emerald-800' :
-                      stats.percentagePaid >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                    <span className={`text-xs font-black px-3 py-1 rounded-full shrink-0 border shadow-3xs ${
+                      stats.percentagePaid >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                      stats.percentagePaid >= 50 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-rose-100 text-rose-800 border-rose-300'
                     }`}>
                       {stats.percentagePaid}% Terkumpul
                     </span>
                   </div>
 
                   {/* Progress bar */}
-                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-200/80 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/40">
                     <div 
-                      className={`h-full transition-all duration-500 ${
+                      className={`h-full rounded-full transition-all duration-500 ${
                         stats.percentagePaid >= 80 ? 'bg-emerald-500' :
                         stats.percentagePaid >= 50 ? 'bg-amber-500' : 'bg-rose-500'
                       }`}
@@ -887,20 +1049,33 @@ export default function ClassManager({
                     />
                   </div>
 
-                  <div className="flex justify-between items-center text-[10px] text-slate-500 pt-0.5 font-medium">
-                    <span>Masuk: <strong className="text-slate-900 font-mono">{formatIDR(stats.totalBillsPaid)}</strong></span>
-                    <span>Target: <strong className="text-slate-500 font-mono">{formatIDR(stats.totalBillsRequired)}</strong></span>
+                  {/* Financial Metrics in Full-Width Stacked Rows (NO TRUNCATION) */}
+                  <div className="pt-2 border-t border-slate-200/70 space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-3xs">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Iuran Masuk</span>
+                      <span className="font-black font-mono text-emerald-700 text-xs sm:text-sm text-right shrink-0">
+                        {formatIDR(stats.totalBillsPaid)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/80 shadow-3xs">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Target Total</span>
+                      <span className="font-extrabold font-mono text-slate-700 text-xs sm:text-sm text-right shrink-0">
+                        {formatIDR(stats.totalBillsRequired)}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Card Action Footer */}
                 <button
                   onClick={() => setSelectedClassForRoster(cls)}
-                  className="w-full py-2 px-3 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-indigo-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                  className="w-full py-3 px-4 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 text-indigo-700 font-extrabold text-xs rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer shadow-3xs hover:shadow-2xs active:scale-[0.99]"
                 >
-                  <Users className="h-3.5 w-3.5" />
-                  Lihat Daftar Siswa Kelas ({stats.studentCount})
-                  <ChevronRight className="h-3.5 w-3.5 ml-auto" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Users className="h-4 w-4 text-indigo-600 shrink-0" />
+                    <span>Lihat Daftar Siswa ({stats.studentCount})</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-indigo-500 shrink-0" />
                 </button>
 
               </div>
@@ -910,16 +1085,16 @@ export default function ClassManager({
       ) : (
         /* TABLE VIEW */
         <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-auto">
             <table className="w-full text-xs text-left text-slate-600">
               <thead className="bg-[#f8fafc] border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">
                 <tr>
-                  <th className="py-3.5 px-6">Nama Kelas</th>
-                  <th className="py-3.5 px-6">Wali Kelas</th>
-                  <th className="py-3.5 px-6">Koordinator Kelas (Korlas)</th>
-                  <th className="py-3.5 px-6 text-center">Jumlah Siswa</th>
-                  <th className="py-3.5 px-6">Capaian Iuran</th>
-                  <th className="py-3.5 px-6 text-center">Aksi</th>
+                  <th className="py-3 px-4">Nama Kelas</th>
+                  <th className="py-3 px-4">Wali Kelas</th>
+                  <th className="py-3 px-4">Korlas</th>
+                  <th className="py-3 px-4 text-center">Jumlah Siswa</th>
+                  <th className="py-3 px-4">Capaian Iuran</th>
+                  <th className="py-3 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -930,19 +1105,19 @@ export default function ClassManager({
 
                   return (
                     <tr key={cls} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-4 px-6 font-extrabold text-slate-900">
+                      <td className="py-3 px-4 font-extrabold text-slate-900">
                         {cls}
                       </td>
-                      <td className="py-4 px-6 text-slate-700 font-medium">
+                      <td className="py-3 px-4 text-slate-700 font-medium">
                         {teacher}
                       </td>
-                      <td className="py-4 px-6 text-slate-700 font-medium">
+                      <td className="py-3 px-4 text-slate-700 font-medium">
                         {korlas}
                       </td>
-                      <td className="py-4 px-6 text-center font-bold font-mono text-slate-900">
+                      <td className="py-3 px-4 text-center font-bold font-mono text-slate-900">
                         {stats.studentCount} Siswa
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-4">
                         <div className="space-y-1 max-w-xs">
                           <div className="flex justify-between text-[10px] font-bold">
                             <span className="text-slate-600">{formatIDR(stats.totalBillsPaid)}</span>
@@ -1497,14 +1672,22 @@ export default function ClassManager({
                               <td className="py-3 px-4 text-slate-700">{s.parentsName || '-'}</td>
                               <td className="py-3 px-4 font-mono text-slate-600">{s.parentsPhone || '-'}</td>
                               <td className="py-3 px-4 text-center">
-                                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  isPaid 
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
-                                }`}>
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  {isPaid ? 'Lunas' : 'Belum Lunas'}
-                                </span>
+                                {isPaid ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Lunas
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPaymentModal(s, currentMonthBill)}
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 hover:shadow-xs transition-all cursor-pointer active:scale-95"
+                                    title="Klik untuk membuka form pembayaran siswa ini"
+                                  >
+                                    <CheckCircle2 className="h-3 w-3 text-rose-600" />
+                                    Belum Lunas
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );
@@ -1533,6 +1716,123 @@ export default function ClassManager({
         </div>
       );
       })()}
+
+    {/* Modal Form Pembayaran (Triggered from Belum Lunas) */}
+    {selectedPaymentStudent && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[70] animate-fade-in">
+        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 border border-slate-100">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-2xl">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-slate-800">Form Pembayaran Iuran</h3>
+                <p className="text-xs text-slate-500 font-medium">Proses pembayaran untuk siswa bersangkutan</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedPaymentStudent(null)}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Student Profile Card */}
+          <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-200/60">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Siswa</span>
+                <span className="text-sm font-black text-slate-800 block">{selectedPaymentStudent.student.name}</span>
+                <span className="text-xs font-mono font-bold text-slate-500">NISN: {selectedPaymentStudent.student.studentId} • {selectedPaymentStudent.student.classId}</span>
+              </div>
+              <span className="px-2.5 py-1 bg-rose-100 text-rose-800 font-bold text-[10px] rounded-full border border-rose-200">
+                Belum Lunas
+              </span>
+            </div>
+            <div className="pt-2 border-t border-slate-200/60 flex justify-between text-xs font-medium text-slate-600">
+              <span>Periode: <strong>{selectedPaymentStudent.bill?.period || (getPeriodsForAcademicYear(selectedAcademicYear)[0] || 'Mei 2026')}</strong></span>
+              <span>Nominal: <strong className="text-indigo-600">{formatIDR(selectedPaymentStudent.bill?.amountRequired || 150000)}</strong></span>
+            </div>
+          </div>
+
+          {/* Form Input */}
+          <form onSubmit={handleProcessPayment} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Nominal Pembayaran (Rp) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-xs text-slate-400">Rp</span>
+                <input
+                  type="number"
+                  min="1000"
+                  required
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(Number(e.target.value))}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl pl-10 pr-3 py-2.5 text-sm font-bold text-slate-800 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Metode Bayar</label>
+                <select
+                  value={payMethod}
+                  onChange={(e) => setPayMethod(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                >
+                  <option value="Transfer Bank">Transfer Bank</option>
+                  <option value="Cash">Tunai / Cash</option>
+                  <option value="E-Wallet">E-Wallet (QRIS/GoPay)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tanggal Bayar</label>
+                <input
+                  type="date"
+                  required
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Catatan / Keterangan (Opsional)</label>
+              <input
+                type="text"
+                placeholder="Cth: Lunas via Transfer BCA"
+                value={payNote}
+                onChange={(e) => setPayNote(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl px-3.5 py-2 text-xs outline-none text-slate-800"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentStudent(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingPayment}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {isSubmittingPayment ? 'Memproses...' : 'Simpan Pembayaran'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
 
     </div>
   );

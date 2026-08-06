@@ -68,6 +68,33 @@ export interface SchoolClass {
   createdAt?: string;
 }
 
+export interface TenantProfile {
+  id: string;
+  name: string;
+  shortName?: string;
+  schoolLevel: string; // SD, SMP, SMA, SMK
+  academicYear: string; // e.g. "2025/2026"
+  committeeChair?: string;
+  treasurerName?: string;
+  principalName?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  monthlyDuesTarget: number;
+  logoUrl?: string;
+  logoIcon?: string; // Icon name e.g. "landmark", "school", "book-open", "award"
+  themeColor?: string; // Theme color preset e.g. "navy", "emerald", "cyan", "purple", "maroon"
+  bankAccount?: string;
+}
+
+export interface TenantUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'treasurer' | 'auditor' | 'parent';
+  tenantId: string;
+}
+
 export interface NotificationLog {
   id: string;
   studentId: string;

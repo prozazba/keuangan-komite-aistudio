@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Ubuntu", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
   
   /* Custom Brand Palette */
   --color-molten-lava: #780000;
@@ -9,6 +10,40 @@
   --color-papaya-whip: #fdf0d5;
   --color-deep-space-blue: #003049;
   --color-steel-blue: #669bbc;
+}
+
+/* Typography Base Setup - Maksimal font-weight 400 */
+:root {
+  font-family: "Ubuntu", sans-serif;
+  font-weight: 400;
+}
+
+body {
+  font-family: "Ubuntu", sans-serif;
+  color: #1e293b;
+  font-weight: 400;
+}
+
+/* Enforce maximum font-weight 400 across all elements */
+*, ::before, ::after,
+b, strong, h1, h2, h3, h4, h5, h6,
+.font-medium, .font-semibold, .font-bold, .font-extrabold, .font-black {
+  font-weight: 400 !important;
+}
+
+/* Headings use Ubuntu Condensed font family, respecting Tailwind font sizes */
+h1, h2, h3, h4, h5, h6, .title, .font-title {
+  font-family: "Ubuntu Condensed", "Ubuntu", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Numerics / numbers = JetBrains Mono font */
+.font-mono, 
+[data-numeric="true"], 
+.numeric, 
+.tabular-nums,
+.number-display {
+  font-family: "JetBrains Mono", monospace;
 }
 
 @layer utilities {
@@ -84,4 +119,5 @@
     page-break-inside: avoid !important;
   }
 }
+
 

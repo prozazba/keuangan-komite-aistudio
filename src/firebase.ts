@@ -63,6 +63,24 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
+// Active Tenant ID management for multi-tenancy isolation
+export function getActiveTenantId(): string {
+  return localStorage.getItem('activeTenantId') || 'demo_tenant';
+}
+
+export function setActiveTenantId(tenantId: string) {
+  if (tenantId) {
+    localStorage.setItem('activeTenantId', tenantId);
+    // Clear in-memory cache and re-trigger listeners for all collections
+    Object.keys(cache).forEach(k => { cache[k] = []; });
+    Object.keys(listeners).forEach(collName => {
+      if (listeners[collName].size > 0) {
+        fetchAndNotify(collName);
+      }
+    });
+  }
+}
+
 // Check offline simulation override flag
 function isOffline() {
   return localStorage.getItem('isOfflineMode') === 'true';
@@ -90,13 +108,17 @@ const cache: Record<string, any[]> = {
 async function fetchAndNotify(collName: string) {
   if (!collName || collName === 'unknown') return;
 
+  const tenantId = getActiveTenantId();
+
   if (isOffline()) {
-    const rawData = localStorage.getItem(`fs_${collName}`);
+    const rawData = localStorage.getItem(`fs_${tenantId}_${collName}`);
     const items = rawData ? JSON.parse(rawData) : [];
     cache[collName] = items;
   } else {
     try {
-      const res = await fetch(`/api/${collName}`);
+      const res = await fetch(`/api/${collName}?tenantId=${encodeURIComponent(tenantId)}`, {
+        headers: { 'x-tenant-id': tenantId }
+      });
       const contentType = res.headers.get('content-type') || '';
       if (res.ok && contentType.includes('application/json')) {
         const items = await res.json();
@@ -204,11 +226,12 @@ export function onSnapshot(collRef: any, callback: (snap: any) => void, errorCal
 export async function setDoc(docRef: any, data: any, options?: any) {
   const collName = docRef.collection || 'unknown';
   const docId = docRef.id || 'unknown';
+  const tenantId = getActiveTenantId();
 
   const docData = { id: docId, ...data };
 
   if (isOffline()) {
-    const key = `fs_${collName}`;
+    const key = `fs_${tenantId}_${collName}`;
     const list = JSON.parse(localStorage.getItem(key) || '[]');
     const idx = list.findIndex((x: any) => x.id === docId);
     if (idx >= 0) {
@@ -218,9 +241,12 @@ export async function setDoc(docRef: any, data: any, options?: any) {
     }
     localStorage.setItem(key, JSON.stringify(list));
   } else {
-    const res = await fetch(`/api/${collName}`, {
+    const res = await fetch(`/api/${collName}?tenantId=${encodeURIComponent(tenantId)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-tenant-id': tenantId
+      },
       body: JSON.stringify(docData)
     });
     if (!res.ok) {
@@ -235,9 +261,10 @@ export async function setDoc(docRef: any, data: any, options?: any) {
 export async function updateDoc(docRef: any, data: any) {
   const collName = docRef.collection || 'unknown';
   const docId = docRef.id || 'unknown';
+  const tenantId = getActiveTenantId();
 
   if (isOffline()) {
-    const key = `fs_${collName}`;
+    const key = `fs_${tenantId}_${collName}`;
     const list = JSON.parse(localStorage.getItem(key) || '[]');
     const idx = list.findIndex((x: any) => x.id === docId);
     if (idx >= 0) {
@@ -245,9 +272,12 @@ export async function updateDoc(docRef: any, data: any) {
       localStorage.setItem(key, JSON.stringify(list));
     }
   } else {
-    const res = await fetch(`/api/${collName}`, {
+    const res = await fetch(`/api/${collName}?tenantId=${encodeURIComponent(tenantId)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-tenant-id': tenantId
+      },
       body: JSON.stringify({ id: docId, ...data })
     });
     if (!res.ok) {
@@ -262,15 +292,17 @@ export async function updateDoc(docRef: any, data: any) {
 export async function deleteDoc(docRef: any) {
   const collName = docRef.collection || 'unknown';
   const docId = docRef.id || 'unknown';
+  const tenantId = getActiveTenantId();
 
   if (isOffline()) {
-    const key = `fs_${collName}`;
+    const key = `fs_${tenantId}_${collName}`;
     let list = JSON.parse(localStorage.getItem(key) || '[]');
     list = list.filter((x: any) => x.id !== docId);
     localStorage.setItem(key, JSON.stringify(list));
   } else {
-    const res = await fetch(`/api/${collName}/${docId}`, {
-      method: 'DELETE'
+    const res = await fetch(`/api/${collName}/${docId}?tenantId=${encodeURIComponent(tenantId)}`, {
+      method: 'DELETE',
+      headers: { 'x-tenant-id': tenantId }
     });
     if (!res.ok) {
       const errJson = await res.json().catch(() => ({ error: 'Gagal menghapus data' }));
@@ -304,11 +336,12 @@ export function writeBatch(databaseInstance: any) {
       return batchObject;
     },
     commit: async () => {
+      const tenantId = getActiveTenantId();
       const affected = new Set(operations.map(op => op.collection));
 
       if (isOffline()) {
         operations.forEach(op => {
-          const key = `fs_${op.collection}`;
+          const key = `fs_${tenantId}_${op.collection}`;
           let list = JSON.parse(localStorage.getItem(key) || '[]');
           if (op.type === 'delete') {
             list = list.filter((x: any) => x.id !== op.id);
@@ -323,9 +356,12 @@ export function writeBatch(databaseInstance: any) {
           localStorage.setItem(key, JSON.stringify(list));
         });
       } else {
-        const res = await fetch('/api/batch', {
+        const res = await fetch(`/api/batch?tenantId=${encodeURIComponent(tenantId)}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-tenant-id': tenantId
+          },
           body: JSON.stringify({ operations })
         });
         if (!res.ok) {

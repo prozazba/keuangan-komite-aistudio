@@ -12,8 +12,8 @@ import {
   signOut, 
   User as FirebaseUser 
 } from 'firebase/auth';
-import { auth, db, handleFirestoreError, OperationType, collection, onSnapshot } from './firebase';
-import { Student, Transaction, Event, StudentBill } from './types';
+import { auth, db, handleFirestoreError, OperationType, collection, onSnapshot, getActiveTenantId, setActiveTenantId } from './firebase';
+import { Student, Transaction, Event as SchoolEvent, StudentBill, TenantProfile, TenantUser } from './types';
 import { seedDemoData, formatIDR, getAcademicYearFromPeriod, getAcademicYearFromDate } from './utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -26,16 +26,34 @@ import NotificationsSim from './components/NotificationsSim';
 import Reports from './components/Reports';
 import ClassManager from './components/ClassManager';
 
+// SaaS Multi-tenant Modals & Public Landing
+import { LandingPage } from './components/LandingPage';
+import { AuthModal } from './components/AuthModal';
+import { TenantSetupModal } from './components/TenantSetupModal';
+import { VersionManagerModal } from './components/VersionManagerModal';
+
 // Icons
 import { 
   LayoutDashboard, GraduationCap, Coins, Target, Bell, 
   FileSpreadsheet, LogOut, Sparkles, BookOpen, AlertCircle, 
   UserCheck, ShieldCheck, HelpCircle, Building2, CheckCircle2, 
-  ArrowDownLeft, ArrowUpRight, TrendingUp, Landmark, Plus, ClipboardList
+  ArrowDownLeft, ArrowUpRight, TrendingUp, Landmark, Plus, ClipboardList,
+  Settings2, History, Globe, LogIn, Smartphone, WifiOff, ChevronDown
 } from 'lucide-react';
 
 export default function App() {
-  // Authentication & Loading States
+  const PWA_SESSION_KEY = 'komiteku_pwa_session_v1';
+
+  // PWA & Network Offline Hooks
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+  const [isPWAInstallable, setIsPWAInstallable] = useState(false);
+  const [isPWAStandalone, setIsPWAStandalone] = useState<boolean>(() => {
+    return window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+  });
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [offlineNotification, setOfflineNotification] = useState<string>('');
+
+  // Role & Demo States
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isDemo, setIsDemo] = useState<boolean>(() => {
@@ -44,13 +62,148 @@ export default function App() {
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(() => {
     return localStorage.getItem('isOfflineMode') === 'true';
   });
-  
-  // Role selection
   const [userRole, setUserRole] = useState<'admin' | 'operator'>(() => {
     return (localStorage.getItem('userRole') as 'admin' | 'operator') || 'admin';
   });
   const [operatorUser, setOperatorUser] = useState('');
   const [operatorPass, setOperatorPass] = useState('');
+
+  // Main SaaS Views - Restore from PWA session if available
+  const [activeView, setActiveView] = useState<'landing' | 'app'>(() => {
+    try {
+      const saved = localStorage.getItem('komiteku_pwa_session_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.activeView === 'app') return 'app';
+      }
+    } catch (e) {}
+    return 'landing';
+  });
+
+  // Tenant & SaaS User State
+  const [activeTenant, setActiveTenant] = useState<TenantProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('komiteku_pwa_session_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.activeTenant) return parsed.activeTenant;
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  const [activeTenantUser, setActiveTenantUser] = useState<TenantUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('komiteku_pwa_session_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.activeTenantUser) return parsed.activeTenantUser;
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  // Modals state
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalInitialMode, setAuthModalInitialMode] = useState<'login' | 'register'>('login');
+  const [tenantSetupOpen, setTenantSetupOpen] = useState(false);
+  const [versionModalOpen, setVersionModalOpen] = useState(false);
+
+  // PWA beforeinstallprompt & Online/Offline listeners
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+      setIsPWAInstallable(true);
+    };
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setOfflineNotification('Koneksi terhubung kembali. Sinkronisasi data...');
+      setTimeout(() => setOfflineNotification(''), 4000);
+      refreshTenantProfile();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setOfflineNotification('Anda sedang offline. Mode PWA menggunakan data ter-cache.');
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && activeTenant?.id) {
+        refreshTenantProfile(activeTenant.id);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt' as any, handleBeforeInstall);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt' as any, handleBeforeInstall);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [activeTenant]);
+
+  const handleInstallPWA = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsPWAInstallable(false);
+      setDeferredInstallPrompt(null);
+    }
+  };
+
+  // Fetch tenant info on startup or when tenantId changes
+  const refreshTenantProfile = async (tId?: string) => {
+    const idToUse = tId || getActiveTenantId();
+    try {
+      const res = await fetch(`/api/tenants/${encodeURIComponent(idToUse)}`);
+      if (res.ok) {
+        const tData = await res.json();
+        setActiveTenant(tData);
+      } else {
+        // Fallback demo tenant
+        setActiveTenant({
+          id: 'demo_tenant',
+          name: 'Sekolah Mandiri Komite',
+          schoolLevel: 'SMP',
+          academicYear: '2025/2026',
+          committeeChair: 'Dr. H. Muhammad Ramli',
+          treasurerName: 'Sri Wahyuli, S.E',
+          principalName: 'Drs. Heru Wijayanto, M.Pd',
+          address: 'Jl. Pendidikan No. 45, Jakarta',
+          monthlyDuesTarget: 150000
+        });
+      }
+    } catch (err) {
+      console.warn("Failed fetching tenant profile:", err);
+    }
+  };
+
+  useEffect(() => {
+    refreshTenantProfile();
+  }, []);
+
+  // Synchronize PWA Session to localStorage
+  useEffect(() => {
+    if (activeView === 'app') {
+      const sessionObj = {
+        activeView: 'app',
+        activeTenant,
+        activeTenantUser,
+        userRole,
+        isDemo,
+        isOfflineMode,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(PWA_SESSION_KEY, JSON.stringify(sessionObj));
+    }
+  }, [activeView, activeTenant, activeTenantUser, userRole, isDemo, isOfflineMode]);
 
   // Auto synchronise state to localStorage to prevent refresh reverts
   useEffect(() => {
@@ -68,7 +221,7 @@ export default function App() {
   // Firestore Collections States
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [bills, setBills] = useState<StudentBill[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(true);
 
@@ -112,6 +265,7 @@ export default function App() {
 
   // UI Active Navigation Tab
   const [activeTab, setActiveTab] = useState<'dashboard' | 'classes' | 'students' | 'iuran' | 'cashflow' | 'events' | 'notifications' | 'reports'>('dashboard');
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 
   // Static list of classes fallback
   const classesFallback = ['Kelas 7-A', 'Kelas 7-B', 'Kelas 8-A', 'Kelas 8-B', 'Kelas 9-A', 'Kelas 9-B', 'Kelas 9-C'];
@@ -319,6 +473,7 @@ export default function App() {
   // Handle Sign-Out
   const handleLogOut = async () => {
     try {
+      localStorage.removeItem(PWA_SESSION_KEY);
       localStorage.removeItem('isOfflineMode');
       localStorage.removeItem('userRole');
       localStorage.removeItem('isDemo');
@@ -326,6 +481,9 @@ export default function App() {
       setIsDemo(false);
       setUserRole('admin');
       setUser(null);
+      setActiveTenant(null);
+      setActiveTenantUser(null);
+      setActiveView('landing');
       await signOut(auth);
     } catch (err) {
       console.error("Logout failed:", err);
@@ -398,6 +556,42 @@ export default function App() {
     }
     return user.email;
   };
+
+  // 0. LANDING PAGE VIEW
+  if (activeView === 'landing') {
+    return (
+      <>
+        <LandingPage
+          onOpenLogin={() => { setAuthModalInitialMode('login'); setAuthModalOpen(true); }}
+          onOpenRegister={() => { setAuthModalInitialMode('register'); setAuthModalOpen(true); }}
+          onOpenDemo={() => {
+            setActiveTenantId('demo_tenant');
+            refreshTenantProfile('demo_tenant');
+            setActiveView('app');
+          }}
+          onInstallPWA={handleInstallPWA}
+          isPWAInstallable={isPWAInstallable}
+          isPWAStandalone={isPWAStandalone}
+        />
+        <AuthModal
+          isOpen={authModalOpen}
+          initialMode={authModalInitialMode}
+          onClose={() => setAuthModalOpen(false)}
+          onSuccess={(uObj, tObj) => {
+            setActiveTenant(tObj);
+            setActiveTenantUser(uObj);
+            setActiveTenantId(tObj.id);
+            setActiveView('app');
+          }}
+        />
+        <VersionManagerModal
+          isOpen={versionModalOpen}
+          onClose={() => setVersionModalOpen(false)}
+          onRefreshData={() => refreshTenantProfile()}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-950 antialiased">
@@ -533,80 +727,165 @@ export default function App() {
           /* 2. CORE WORKSPACE APPLICATION */
           <div key="core-app" className="flex-1 flex flex-col bg-soft-canvas text-slate-900 min-h-screen">
             
+            {/* PWA Network & Offline Sync Banner */}
+            {(!isOnline || offlineNotification) && (
+              <div className={`px-4 py-1.5 text-xs font-medium text-center flex items-center justify-center gap-2 transition-all z-40 ${!isOnline ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'}`}>
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{offlineNotification || '⚡ Mode Offline PWA: Menampilkan data tersimpan di perangkat.'}</span>
+              </div>
+            )}
+
             {/* STICKY WORKSPACE HEADER */}
             <header className="bg-header-gradient text-white z-30 no-print shadow-md shadow-[#003049]/15">
-              <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center justify-between">
+              <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
                 
-                {/* Branding */}
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center text-[#fdf0d5] font-bold shadow-xs">
+                {/* Branding & Active Tenant */}
+                <div className="flex items-center gap-3 shrink-0 min-w-0">
+                  <div className="h-10 w-10 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center text-[#fdf0d5] shrink-0 shadow-xs">
                     <Landmark className="h-5 w-5" />
                   </div>
-                  <div className="text-left">
-                    <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-2">
-                      Komite Sekolah
-                      <span 
-                        className={`inline-flex items-center justify-center p-1 rounded-full transition-all ${
-                          isOfflineMode 
-                            ? 'bg-rose-500/20 text-rose-200' 
-                            : 'bg-emerald-400/20 text-emerald-200'
-                        }`}
-                        title={isOfflineMode ? 'Koneksi Database Terputus (Offline)' : 'Terkoneksi ke Database (Online)'}
-                      >
-                        <span 
-                          className={`h-2 w-2 rounded-full ${
-                            isOfflineMode 
-                              ? 'bg-rose-400' 
-                              : 'bg-emerald-400 animate-pulse'
-                          }`}
-                        />
+                  <div className="text-left min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h1 className="text-sm sm:text-base tracking-tight text-white truncate max-w-[170px] sm:max-w-xs md:max-w-sm">
+                        {activeTenant?.name || 'Komite Sekolah'}
+                      </h1>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 shrink-0">
+                        {activeTenant?.schoolLevel || 'SMP'}
                       </span>
-                    </h1>
-                    <p className="text-[9px] text-[#fdf0d5]/80 font-extrabold uppercase tracking-widest">Organisasi Independen Pengawasan & Kemitraan</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                      <span 
+                        title={`Kode Unit Komite: ${activeTenant?.id || getActiveTenantId()}`} 
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 text-[#fdf0d5] text-[10px] tracking-wide"
+                      >
+                        <Building2 className="w-3 h-3 text-[#fdf0d5]" />
+                        <span>{activeTenant?.id || getActiveTenantId()}</span>
+                      </span>
+
+                      {isPWAStandalone && (
+                        <span title="Aplikasi Terhubung di Layar Utama" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-200 text-[10px]">
+                          <Smartphone className="w-3 h-3" />
+                          <span className="hidden sm:inline">Terpasang</span>
+                        </span>
+                      )}
+
+                      {!isOnline && (
+                        <span title="Mode Luring Aktif (Disimpan di Perangkat)" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-200 text-[10px]">
+                          <WifiOff className="w-3 h-3" />
+                          <span>Luring</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Academic Year Switcher Dropdown */}
-                <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-md px-3 py-1.5 rounded-2xl text-[10px] font-bold text-[#fdf0d5] uppercase tracking-wider shrink-0 shadow-xs">
-                  <GraduationCap className="h-4 w-4 text-[#fdf0d5] shrink-0" />
-                  <span className="hidden md:inline text-white/80">Tahun Ajaran</span>
-                  <select
-                    id="select-academic-year"
-                    value={selectedAcademicYear}
-                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                    className="bg-transparent text-white border-none outline-none font-extrabold text-xs cursor-pointer focus:ring-0 uppercase py-0 pl-1"
-                  >
-                    {availableAcademicYears.map(yr => (
-                      <option key={yr} value={yr} className="text-slate-900">TA {yr}</option>
-                    ))}
-                  </select>
-                  {userRole === 'admin' && (
-                    <button
-                      id="btn-add-academic-year"
-                      onClick={handleAddAcademicYear}
-                      title="Tambah Tahun Ajaran Baru"
-                      className="ml-1 text-white/80 hover:text-white font-bold transition-colors cursor-pointer"
+                {/* Quick Action SaaS Controls */}
+                <div className="flex items-center gap-2 text-xs shrink-0">
+                  {/* Academic Year Switcher Dropdown */}
+                  <div className="flex items-center gap-1.5 bg-white/15 hover:bg-white/20 transition-all px-3 py-1.5 rounded-xl text-xs text-white font-extrabold shrink-0 shadow-2xs border border-white/10">
+                    <GraduationCap className="h-3.5 w-3.5 text-[#fdf0d5] shrink-0" />
+                    <select
+                      id="select-academic-year"
+                      value={selectedAcademicYear}
+                      onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                      className="bg-transparent text-white border-none outline-none font-extrabold text-xs cursor-pointer focus:ring-0 uppercase py-0 pl-0.5"
                     >
-                      <Plus className="h-4 w-4 bg-white/20 hover:bg-white/30 text-white p-0.5 rounded-lg transition-all shrink-0" />
-                    </button>
-                  )}
-                </div>
+                      {availableAcademicYears.map(yr => (
+                        <option key={yr} value={yr} className="text-slate-900 font-semibold">TA {yr}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* User Info & log out */}
-                <div className="flex items-center gap-4 text-xs font-semibold">
-                  <span className="text-white/80 hidden sm:inline-flex items-center gap-1.5">
-                    <span className="h-2 w-2 bg-emerald-400 rounded-full inline-block animate-pulse"></span>
-                    Bendahara: <strong className="text-white font-bold">{getUserLabel()}</strong>
-                  </span>
-                  
-                  <button
-                    id="btn-logout"
-                    onClick={handleLogOut}
-                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Keluar Sesi
-                  </button>
+                  {/* System Menu Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border shadow-2xs ${
+                        isHeaderMenuOpen
+                          ? 'bg-white text-[#003049] border-white shadow-md'
+                          : 'bg-white/15 hover:bg-white/25 text-white border-white/15'
+                      }`}
+                      title="Menu Sistem & Pengaturan"
+                    >
+                      <Settings2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+                      <span className="hidden sm:inline">Menu Sistem</span>
+                      <span className="inline sm:hidden">Menu</span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isHeaderMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* Dropdown Menu Popup */}
+                    {isHeaderMenuOpen && (
+                      <>
+                        {/* Backdrop to dismiss when clicking outside */}
+                        <div 
+                          className="fixed inset-0 z-40 bg-transparent"
+                          onClick={() => setIsHeaderMenuOpen(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-slate-800 text-xs font-medium divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-150">
+                          
+                          <div className="px-3.5 py-2 space-y-0.5">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Akun & Identitas</span>
+                            <div className="text-xs font-extrabold text-[#003049] truncate">{getUserLabel()}</div>
+                            <div className="text-[10px] text-slate-500 truncate">{activeTenant?.name || 'Komite Sekolah'}</div>
+                          </div>
+
+                          <div className="py-1">
+                            <button
+                              type="button"
+                              onClick={() => { setTenantSetupOpen(true); setIsHeaderMenuOpen(false); }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 font-semibold cursor-pointer transition-colors"
+                            >
+                              <Settings2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <span>Pengaturan & Branding Komite</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => { setVersionModalOpen(true); setIsHeaderMenuOpen(false); }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 font-semibold cursor-pointer transition-colors"
+                            >
+                              <History className="w-4 h-4 text-cyan-600 shrink-0" />
+                              <span>Cadangan Data Komite</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => { setActiveView('landing'); setIsHeaderMenuOpen(false); }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 font-semibold cursor-pointer transition-colors"
+                            >
+                              <Globe className="w-4 h-4 text-indigo-600 shrink-0" />
+                              <span>Halaman Utama (Publik)</span>
+                            </button>
+
+                            {isPWAInstallable && !isPWAStandalone && (
+                              <button
+                                type="button"
+                                onClick={() => { handleInstallPWA(); setIsHeaderMenuOpen(false); }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-emerald-700 font-semibold cursor-pointer transition-colors"
+                              >
+                                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Pasang Aplikasi (PWA)</span>
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="pt-1">
+                            <button
+                              id="btn-logout"
+                              type="button"
+                              onClick={() => { setActiveView('landing'); setIsHeaderMenuOpen(false); }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-rose-50 flex items-center gap-2.5 text-rose-600 font-bold cursor-pointer transition-colors"
+                            >
+                              <LogOut className="w-4 h-4 text-rose-500 shrink-0" />
+                              <span>Keluar Sesi</span>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
               </div>
@@ -797,47 +1076,47 @@ export default function App() {
                         </div>
 
                         {/* Top stat indicator bars */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                           {/* Saldo Kas */}
-                          <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
-                            <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest block">Sisa Saldo Kas</span>
-                              <span className="text-lg font-black text-[#003049] block">{formatIDR(systemDashboardStats.netCash)}</span>
+                          <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                            <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+                              <span className="text-xs font-semibold text-slate-500 tracking-wide block truncate">Sisa Saldo Kas</span>
+                              <span className="text-base sm:text-lg lg:text-xl font-black text-[#003049] block font-mono truncate" title={formatIDR(systemDashboardStats.netCash)}>{formatIDR(systemDashboardStats.netCash)}</span>
                             </div>
-                            <div className="h-11 w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shadow-2xs">
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shrink-0 shadow-2xs">
                               <Coins className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Pemasukan */}
-                          <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
-                            <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-emerald-800/80 font-extrabold uppercase tracking-widest block">Total Penerimaan</span>
-                              <span className="text-lg font-black text-emerald-700 block">+{formatIDR(systemDashboardStats.totalIncome)}</span>
+                          <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                            <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+                              <span className="text-xs font-semibold text-emerald-800/80 tracking-wide block truncate">Total Penerimaan</span>
+                              <span className="text-base sm:text-lg lg:text-xl font-black text-emerald-700 block font-mono truncate" title={`+${formatIDR(systemDashboardStats.totalIncome)}`}>+{formatIDR(systemDashboardStats.totalIncome)}</span>
                             </div>
-                            <div className="h-11 w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shadow-2xs">
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0 shadow-2xs">
                               <ArrowDownLeft className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Pengeluaran */}
-                          <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
-                            <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-[#780000]/80 font-extrabold uppercase tracking-widest block">Total Pengeluaran</span>
-                              <span className="text-lg font-black text-[#c1121f] block">-{formatIDR(systemDashboardStats.totalExpense)}</span>
+                          <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                            <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+                              <span className="text-xs font-semibold text-[#780000]/80 tracking-wide block truncate">Total Pengeluaran</span>
+                              <span className="text-base sm:text-lg lg:text-xl font-black text-[#c1121f] block font-mono truncate" title={`-${formatIDR(systemDashboardStats.totalExpense)}`}>-{formatIDR(systemDashboardStats.totalExpense)}</span>
                             </div>
-                            <div className="h-11 w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shadow-2xs">
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shrink-0 shadow-2xs">
                               <ArrowUpRight className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Piutang Outstanding */}
-                          <div className="bg-gradient-to-br from-white via-[#fffbeb] to-[#fdf0d5] p-5 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
-                            <div className="space-y-0.5 text-left">
-                              <span className="text-[9px] text-amber-900/80 font-extrabold uppercase tracking-widest block">Piutang Outstanding</span>
-                              <span className="text-lg font-black text-amber-800 block">{formatIDR(systemDashboardStats.unpaidSum)}</span>
+                          <div className="bg-gradient-to-br from-white via-[#fffbeb] to-[#fdf0d5] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                            <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
+                              <span className="text-xs font-semibold text-amber-900/80 tracking-wide block truncate">Piutang Outstanding</span>
+                              <span className="text-base sm:text-lg lg:text-xl font-black text-amber-800 block font-mono truncate" title={formatIDR(systemDashboardStats.unpaidSum)}>{formatIDR(systemDashboardStats.unpaidSum)}</span>
                             </div>
-                            <div className="h-11 w-11 bg-amber-200/60 rounded-2xl flex items-center justify-center text-amber-800 shadow-2xs">
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-amber-200/60 rounded-2xl flex items-center justify-center text-amber-800 shrink-0 shadow-2xs">
                               <Bell className="h-5 w-5 animate-bounce" />
                             </div>
                           </div>
@@ -847,9 +1126,9 @@ export default function App() {
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                           {/* Active events panel queue */}
                           <div className="lg:col-span-7 bg-white/90 backdrop-blur-xs p-6 rounded-3xl space-y-4 shadow-sm text-left">
-                            <div className="flex justify-between items-center pb-3 border-b border-slate-100/80">
-                              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#003049]">Status 3 Anggaran Kegiatan Komite</h3>
-                              <button onClick={() => setActiveTab('events')} className="text-xs text-[#669bbc] font-extrabold hover:text-[#003049] transition-colors cursor-pointer">Semua Event →</button>
+                            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100/80">
+                              <h3 className="text-sm font-bold text-[#003049] tracking-tight">Anggaran Kegiatan Komite</h3>
+                              <button onClick={() => setActiveTab('events')} className="text-xs text-[#669bbc] font-bold hover:text-[#003049] transition-colors cursor-pointer shrink-0 whitespace-nowrap">Semua Event →</button>
                             </div>
 
                             <div className="space-y-3">
@@ -884,9 +1163,9 @@ export default function App() {
 
                           {/* Dynamic transaction log shortcuts */}
                           <div className="lg:col-span-5 bg-white/90 backdrop-blur-xs p-6 rounded-3xl space-y-4 shadow-sm text-left">
-                            <div className="flex justify-between items-center pb-3 border-b border-slate-100/80">
-                              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#003049]">Mutasi Keuangan Terkini</h3>
-                              <button onClick={() => setActiveTab('cashflow')} className="text-xs text-[#669bbc] font-extrabold hover:text-[#003049] transition-colors cursor-pointer">Detail Buku Kas →</button>
+                            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100/80">
+                              <h3 className="text-sm font-bold text-[#003049] tracking-tight">Mutasi Keuangan Terkini</h3>
+                              <button onClick={() => setActiveTab('cashflow')} className="text-xs text-[#669bbc] font-bold hover:text-[#003049] transition-colors cursor-pointer shrink-0 whitespace-nowrap">Detail Buku Kas →</button>
                             </div>
 
                             <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
@@ -1002,13 +1281,28 @@ export default function App() {
 
             {/* PLATFORM APP FOOTER */}
             <footer className="bg-white border-t border-slate-200 text-slate-500 py-6 text-center text-xs space-y-1 mt-12 no-print">
-              <p className="font-bold">Keuangan Komite © {new Date().getFullYear()} • Sekolah Mandiri Indonesia</p>
-              <p className="text-[10px] text-slate-400 font-medium">Transparan - Akuntabel - Sinkron Real-time - PDF-Friendly</p>
+              <p className="font-bold">KomiteKu SaaS © {new Date().getFullYear()} • Sekolah Mandiri Indonesia</p>
+              <p className="text-[10px] text-slate-400 font-medium">Mitra independen sekolah: transparansi, akuntabilitas, dan advokasi siswa.</p>
             </footer>
 
           </div>
         )}
       </AnimatePresence>
+
+      <TenantSetupModal
+        isOpen={tenantSetupOpen}
+        tenant={activeTenant}
+        onClose={() => setTenantSetupOpen(false)}
+        onSave={(updatedTenant) => {
+          setActiveTenant(updatedTenant);
+        }}
+      />
+
+      <VersionManagerModal
+        isOpen={versionModalOpen}
+        onClose={() => setVersionModalOpen(false)}
+        onRefreshData={() => refreshTenantProfile()}
+      />
 
     </div>
   );
