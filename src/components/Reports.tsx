@@ -383,9 +383,9 @@ export default function Reports({ transactions, students, bills, classes, select
                 <span className="text-[10px] font-bold text-slate-500">TA {selectedAcademicYear}</span>
               </h3>
 
-              <table className="w-full text-xs text-left border-collapse">
+              <table className="w-full text-xs text-left">
                 <thead>
-                  <tr className="bg-[#f7fafc] border-b border-slate-200 text-[#003049] font-black uppercase tracking-wider">
+                  <tr className="bg-[#f7fafc] text-[#003049] font-black uppercase tracking-wider">
                     <th className="py-3 px-4">Semester & Rentang Bulan</th>
                     <th className="py-3 px-4 text-right">Target Iuran</th>
                     <th className="py-3 px-4 text-right">Pemasukan Realisasi</th>
@@ -393,7 +393,7 @@ export default function Reports({ transactions, students, bills, classes, select
                     <th className="py-3 px-4 text-right">Saldo Netto Semester</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="bg-white">
                   <tr>
                     <td className="py-3.5 px-4 font-bold text-slate-900">
                       <div>{eduSemesters.sem1Name}</div>
@@ -476,13 +476,13 @@ export default function Reports({ transactions, students, bills, classes, select
                 
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-gray-150 font-bold text-gray-500 bg-gray-50/50">
+                    <tr className="font-bold text-gray-500 bg-gray-50/50">
                       <th className="py-2 px-2">Tgl</th>
                       <th className="py-2 px-2">Deskripsi / Rujukan</th>
                       <th className="py-2 px-2 text-right">Nominal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-150/70">
+                  <tbody className="bg-white">
                     {monthlyData.incomeTransactions.length > 0 ? (
                       monthlyData.incomeTransactions.map(tx => (
                         <tr key={tx.id} className="hover:bg-gray-55">
@@ -509,13 +509,13 @@ export default function Reports({ transactions, students, bills, classes, select
                 
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-gray-150 font-bold text-gray-500 bg-gray-50/50">
+                    <tr className="font-bold text-gray-500 bg-gray-50/50">
                       <th className="py-2 px-2">Tgl</th>
                       <th className="py-2 px-2">Deskripsi / Rujukan</th>
                       <th className="py-2 px-2 text-right">Nominal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-150/70">
+                  <tbody className="bg-white">
                     {monthlyData.expenseTransactions.length > 0 ? (
                       monthlyData.expenseTransactions.map(tx => (
                         <tr key={tx.id} className="hover:bg-gray-55">
@@ -569,10 +569,10 @@ export default function Reports({ transactions, students, bills, classes, select
                 <span className="text-[10px] font-normal text-gray-400 italic font-sans uppercase">Terfilter: {billingReportData.listOfBills.length} tagihan</span>
               </h3>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto min-w-0 scrollbar-thin pb-1">
                 <table className="w-full text-xs text-left min-w-[720px]">
                   <thead>
-                    <tr className="bg-gray-100/70 border-b border-gray-200 font-bold text-gray-500 whitespace-nowrap">
+                    <tr className="bg-gray-100/70 font-bold text-gray-500 whitespace-nowrap">
                       <th className="px-4 py-3">Nama Siswa / Roster</th>
                       <th className="px-4 py-3">Tingkat Kelas</th>
                       <th className="px-4 py-3">Periode</th>
@@ -582,27 +582,31 @@ export default function Reports({ transactions, students, bills, classes, select
                       <th className="px-4 py-3 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-150 text-gray-700">
+                  <tbody className="text-gray-700 bg-white">
                     {billingReportData.listOfBills.length > 0 ? (
                       billingReportData.listOfBills.map(bill => {
                         const remain = bill.amountRequired - bill.amountPaid;
                         return (
-                          <tr key={bill.id} className="hover:bg-gray-50/50">
+                          <tr key={bill.id} className="hover:bg-gray-50/50 border-b border-gray-100/80 transition-colors">
                             <td className="px-4 py-3.5">
                               <div className="font-bold text-gray-900">{bill.studentName}</div>
                               <span className="text-[10px] text-gray-400 block mt-0.5">Wali: {bill.parentsName} / {bill.parentsPhone}</span>
                             </td>
                             <td className="px-4 py-3.5 whitespace-nowrap">{bill.studentClass}</td>
-                            <td className="px-4 py-3.5 whitespace-nowrap font-semibold">{bill.period}</td>
-                            <td className="px-4 py-3.5 text-right font-medium">{formatIDR(bill.amountRequired)}</td>
-                            <td className="px-4 py-3.5 text-right text-emerald-600 font-semibold">{formatIDR(bill.amountPaid)}</td>
-                            <td className="px-4 py-3.5 text-right font-extrabold text-amber-800">{formatIDR(remain)}</td>
+                            <td className="px-4 py-3.5 whitespace-nowrap font-semibold">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
+                                {bill.period}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-right font-medium whitespace-nowrap">{formatIDR(bill.amountRequired)}</td>
+                            <td className="px-4 py-3.5 text-right text-emerald-600 font-semibold whitespace-nowrap">{formatIDR(bill.amountPaid)}</td>
+                            <td className="px-4 py-3.5 text-right font-extrabold text-amber-800 whitespace-nowrap">{formatIDR(remain)}</td>
                             <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase whitespace-nowrap ${
                                 bill.status === 'paid' ? 'bg-emerald-100 text-emerald-800' :
                                 bill.status === 'partially_paid' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
                               }`}>
-                                {bill.status === 'paid' ? 'LUNAS' : bill.status === 'partially_paid' ? 'SEBAGIAN' : 'NIL'}
+                                {bill.status === 'paid' ? 'LUNAS' : bill.status === 'partially_paid' ? 'SEBAGIAN' : 'BELUM LUNAS'}
                               </span>
                             </td>
                           </tr>
@@ -634,10 +638,10 @@ export default function Reports({ transactions, students, bills, classes, select
                 Rangkuman Partisipasi Cash Flow Unit Kelas Sederajat
               </h3>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto min-w-0 scrollbar-thin pb-1">
                 <table className="w-full text-xs text-left min-w-[650px]">
                   <thead>
-                    <tr className="bg-gray-100 border-b border-gray-200 font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                    <tr className="bg-gray-100 font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
                       <th className="px-5 py-3">Nama Kelas Sederajat</th>
                       <th className="px-5 py-3 text-center">Jumlah Roster Siswa</th>
                       <th className="px-5 py-3 text-right font-sans">Target Iuran Komite</th>
@@ -646,7 +650,7 @@ export default function Reports({ transactions, students, bills, classes, select
                       <th className="px-5 py-3 text-center">% Partisipasi lunas</th>
                     </tr>
                   </thead>
-                <tbody className="divide-y divide-gray-150 text-gray-700 text-[13px]">
+                <tbody className="text-gray-700 text-[13px] bg-white">
                   {classReportData.map(clsData => {
                     const classOutstanding = clsData.totalDuesRequired - clsData.totalDuesCollected;
                     // percentage

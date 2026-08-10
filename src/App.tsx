@@ -741,311 +741,168 @@ export default function App() {
               </div>
             )}
 
-            {/* STICKY WORKSPACE HEADER */}
-            <header className="bg-header-gradient text-white z-30 no-print shadow-md shadow-[#003049]/15">
-              <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                
-                {/* Branding & Active Tenant */}
-                <div className="flex items-center gap-3 shrink-0 min-w-0">
-                  <div className="h-10 w-10 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center text-[#fdf0d5] shrink-0 shadow-xs">
-                    <Landmark className="h-5 w-5" />
-                  </div>
-                  <div className="text-left min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="text-sm sm:text-base tracking-tight text-white truncate max-w-[170px] sm:max-w-xs md:max-w-sm">
-                        {activeTenant?.name || 'Komite Sekolah'}
-                      </h1>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 shrink-0">
-                        {activeTenant?.schoolLevel || 'SMP'}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                      <span 
-                        title={`Kode Unit Komite: ${activeTenant?.id || getActiveTenantId()}`} 
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 text-[#fdf0d5] text-[10px] tracking-wide"
-                      >
-                        <Building2 className="w-3 h-3 text-[#fdf0d5]" />
-                        <span>{activeTenant?.id || getActiveTenantId()}</span>
-                      </span>
-
-                      {isPWAStandalone && (
-                        <span title="Aplikasi Terhubung di Layar Utama" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-200 text-[10px]">
-                          <Smartphone className="w-3 h-3" />
-                          <span className="hidden sm:inline">Terpasang</span>
-                        </span>
-                      )}
-
-                      {!isOnline && (
-                        <span title="Mode Luring Aktif (Disimpan di Perangkat)" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-200 text-[10px]">
-                          <WifiOff className="w-3 h-3" />
-                          <span>Luring</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Action SaaS Controls */}
-                <div className="flex items-center gap-2 text-xs shrink-0">
-                  {/* Academic Year Switcher Dropdown */}
-                  <div className="flex items-center gap-1.5 bg-white/15 hover:bg-white/20 transition-all px-3 py-1.5 rounded-xl text-xs text-white font-extrabold shrink-0 shadow-2xs border border-white/10">
-                    <GraduationCap className="h-3.5 w-3.5 text-[#fdf0d5] shrink-0" />
-                    <select
-                      id="select-academic-year"
-                      value={selectedAcademicYear}
-                      onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                      className="bg-transparent text-white border-none outline-none font-extrabold text-xs cursor-pointer focus:ring-0 uppercase py-0 pl-0.5"
-                    >
-                      {availableAcademicYears.map(yr => (
-                        <option key={yr} value={yr} className="text-slate-900 font-semibold">TA {yr}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* System Menu Dropdown */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer border shadow-2xs ${
-                        isHeaderMenuOpen
-                          ? 'bg-white text-[#003049] border-white shadow-md'
-                          : 'bg-white/15 hover:bg-white/25 text-white border-white/15'
-                      }`}
-                      title="Menu Sistem & Pengaturan"
-                    >
-                      <Settings2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-                      <span className="hidden sm:inline">Menu Sistem</span>
-                      <span className="inline sm:hidden">Menu</span>
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isHeaderMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {/* Dropdown Menu Popup */}
-                    {isHeaderMenuOpen && (
-                      <>
-                        {/* Backdrop to dismiss when clicking outside */}
-                        <div 
-                          className="fixed inset-0 z-40 bg-transparent"
-                          onClick={() => setIsHeaderMenuOpen(false)}
-                        />
-                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-slate-800 text-xs font-medium divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-150">
-                          
-                          <div className="px-3.5 py-2 space-y-0.5">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Akun & Identitas</span>
-                            <div className="text-xs font-extrabold text-[#003049] truncate">{getUserLabel()}</div>
-                            <div className="text-[10px] text-slate-500 truncate">{activeTenant?.name || 'Komite Sekolah'}</div>
-                          </div>
-
-                          <div className="py-1">
-                            <button
-                              type="button"
-                              onClick={() => { setTenantSetupOpen(true); setIsHeaderMenuOpen(false); }}
-                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 font-semibold cursor-pointer transition-colors"
-                            >
-                              <Settings2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                              <span>Pengaturan & Branding Komite</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => { setVersionModalOpen(true); setIsHeaderMenuOpen(false); }}
-                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 font-semibold cursor-pointer transition-colors"
-                            >
-                              <History className="w-4 h-4 text-cyan-600 shrink-0" />
-                              <span>Cadangan Data Komite</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => { setActiveView('landing'); setIsHeaderMenuOpen(false); }}
-                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 font-semibold cursor-pointer transition-colors"
-                            >
-                              <Globe className="w-4 h-4 text-indigo-600 shrink-0" />
-                              <span>Halaman Utama (Publik)</span>
-                            </button>
-
-                            {isPWAInstallable && !isPWAStandalone && (
-                              <button
-                                type="button"
-                                onClick={() => { handleInstallPWA(); setIsHeaderMenuOpen(false); }}
-                                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-emerald-700 font-semibold cursor-pointer transition-colors"
-                              >
-                                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                                <span>Pasang Aplikasi (PWA)</span>
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="pt-1">
-                            <button
-                              id="btn-logout"
-                              type="button"
-                              onClick={() => { setActiveView('landing'); setIsHeaderMenuOpen(false); }}
-                              className="w-full text-left px-3.5 py-2 hover:bg-rose-50 flex items-center gap-2.5 text-rose-600 font-bold cursor-pointer transition-colors"
-                            >
-                              <LogOut className="w-4 h-4 text-rose-500 shrink-0" />
-                              <span>Keluar Sesi</span>
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            </header>
-
             {/* MAIN APP CONTAINER */}
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-6 py-6 flex flex-col lg:flex-row gap-6">
+            <main className="flex-1 max-w-7xl w-full mx-auto p-4 py-4 flex flex-col lg:flex-row gap-4">
               
               {/* MOBILE & TABLET COLLAPSIBLE NAVIGATION BAR (LG:HIDDEN) */}
               <div className="lg:hidden w-full flex flex-col gap-2 no-print">
-                <div className="flex items-center justify-between bg-[#002438] border border-[#003855] rounded-2xl p-2.5 px-3.5 text-white shadow-md">
+                <div className="flex items-center justify-between bg-white border border-slate-200/80 rounded-2xl p-2.5 px-3.5 text-slate-900 shadow-2xs">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <button
                       type="button"
                       onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                      className="p-1.5 rounded-xl bg-slate-800 text-slate-200 hover:text-white border border-slate-700 shrink-0 cursor-pointer"
+                      className="p-1.5 rounded-xl bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 shrink-0 cursor-pointer"
                       title="Buka / Sembunyikan Navigasi Menu"
                     >
-                      {isMobileMenuOpen ? <X className="w-4 h-4 text-rose-400" /> : <Menu className="w-4 h-4 text-emerald-400" />}
+                      {isMobileMenuOpen ? <X className="w-4 h-4 text-rose-600" /> : <Menu className="w-4 h-4 text-indigo-600" />}
                     </button>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                        Navigasi Utama
-                      </span>
-                      <span className="text-xs font-black text-emerald-400 truncate">
-                        {
-                          activeTab === 'dashboard' ? 'Ringkasan Utama' :
-                          activeTab === 'classes' ? 'Pemetaan Kelas' :
-                          activeTab === 'students' ? 'Database Siswa' :
-                          activeTab === 'iuran' ? 'Kelola Iuran' :
-                          activeTab === 'cashflow' ? 'Buku Kas Komite' :
-                          activeTab === 'events' ? 'RAB & Program' :
-                          activeTab === 'notifications' ? 'Advokasi & WA' : 'Laporan LPJ'
-                        }
-                      </span>
+                    
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-xs">
+                        <Landmark className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-900 truncate">
+                          {activeTenant?.name || 'Komite Sekolah'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium truncate">
+                          {
+                            activeTab === 'dashboard' ? 'Ringkasan Utama' :
+                            activeTab === 'classes' ? 'Pemetaan Kelas' :
+                            activeTab === 'students' ? 'Database Siswa' :
+                            activeTab === 'iuran' ? 'Kelola Iuran' :
+                            activeTab === 'cashflow' ? 'Buku Kas Komite' :
+                            activeTab === 'events' ? 'RAB & Program' :
+                            activeTab === 'notifications' ? 'Advokasi & WA' : 'Laporan LPJ'
+                          }
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-extrabold text-white border border-white/15 transition-all cursor-pointer shrink-0 max-w-[170px]"
-                  >
-                    <span className="truncate">
-                      {isMobileMenuOpen ? 'Tutup Menu' : (
-                        activeTab === 'dashboard' ? 'Ringkasan Utama' :
-                        activeTab === 'classes' ? 'Pemetaan Kelas' :
-                        activeTab === 'students' ? 'Database Siswa' :
-                        activeTab === 'iuran' ? 'Kelola Iuran' :
-                        activeTab === 'cashflow' ? 'Buku Kas Komite' :
-                        activeTab === 'events' ? 'RAB & Program' :
-                        activeTab === 'notifications' ? 'Advokasi & WA' : 'Laporan LPJ'
-                      )}
-                    </span>
-                    {isMobileMenuOpen ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Academic Year Switcher Dropdown */}
+                    <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl text-xs font-bold border border-slate-200/80">
+                      <GraduationCap className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                      <select
+                        id="select-academic-year-mobile"
+                        value={selectedAcademicYear}
+                        onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                        className="bg-transparent text-slate-800 border-none outline-none font-bold text-xs cursor-pointer focus:ring-0 uppercase py-0"
+                      >
+                        {availableAcademicYears.map(yr => (
+                          <option key={yr} value={yr}>TA {yr}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setTenantSetupOpen(true)}
+                      className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shrink-0 cursor-pointer"
+                      title="Pengaturan Komite"
+                    >
+                      <Settings2 className="w-4 h-4 text-indigo-600" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Collapsible Mobile Menu Grid */}
                 {isMobileMenuOpen && (
-                  <nav className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-2 bg-[#002438] border border-[#003855] rounded-2xl shadow-lg text-white animate-in fade-in zoom-in-95 duration-200">
+                  <nav className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-2 bg-white border border-slate-200/80 rounded-2xl shadow-lg text-slate-800 animate-in fade-in zoom-in-95 duration-200">
                     <button
                       onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'dashboard' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <LayoutDashboard className={`h-4 w-4 shrink-0 ${activeTab === 'dashboard' ? 'text-[#002438]' : 'text-indigo-400'}`} />
+                      <LayoutDashboard className={`h-4 w-4 shrink-0 ${activeTab === 'dashboard' ? 'text-white' : 'text-indigo-600'}`} />
                       <span className="truncate">Ringkasan</span>
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('classes'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'classes' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <Building2 className={`h-4 w-4 shrink-0 ${activeTab === 'classes' ? 'text-[#002438]' : 'text-cyan-400'}`} />
+                      <Building2 className={`h-4 w-4 shrink-0 ${activeTab === 'classes' ? 'text-white' : 'text-cyan-600'}`} />
                       <span className="truncate">Pemetaan Kelas</span>
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('students'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'students' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <GraduationCap className={`h-4 w-4 shrink-0 ${activeTab === 'students' ? 'text-[#002438]' : 'text-emerald-400'}`} />
+                      <GraduationCap className={`h-4 w-4 shrink-0 ${activeTab === 'students' ? 'text-white' : 'text-emerald-600'}`} />
                       <span className="truncate">Database Siswa</span>
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('iuran'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'iuran' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <ClipboardList className={`h-4 w-4 shrink-0 ${activeTab === 'iuran' ? 'text-[#002438]' : 'text-amber-400'}`} />
+                      <ClipboardList className={`h-4 w-4 shrink-0 ${activeTab === 'iuran' ? 'text-white' : 'text-amber-600'}`} />
                       <span className="truncate">Kelola Iuran</span>
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('cashflow'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'cashflow' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <Coins className={`h-4 w-4 shrink-0 ${activeTab === 'cashflow' ? 'text-[#002438]' : 'text-emerald-400'}`} />
+                      <Coins className={`h-4 w-4 shrink-0 ${activeTab === 'cashflow' ? 'text-white' : 'text-emerald-600'}`} />
                       <span className="truncate">Buku Kas</span>
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('events'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'events' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <Target className={`h-4 w-4 shrink-0 ${activeTab === 'events' ? 'text-[#002438]' : 'text-purple-400'}`} />
+                      <Target className={`h-4 w-4 shrink-0 ${activeTab === 'events' ? 'text-white' : 'text-purple-600'}`} />
                       <span className="truncate">RAB & Program</span>
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('notifications'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'notifications' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <Bell className={`h-4 w-4 shrink-0 ${activeTab === 'notifications' ? 'text-[#002438]' : 'text-sky-400'}`} />
+                      <Bell className={`h-4 w-4 shrink-0 ${activeTab === 'notifications' ? 'text-white' : 'text-sky-600'}`} />
                       <span className="truncate">Advokasi & WA</span>
                     </button>
 
                     <button
                       onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer min-w-0 ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer min-w-0 ${
                         activeTab === 'reports' 
-                          ? 'bg-white text-[#002438] shadow-sm' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-600 text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
                       }`}
                     >
-                      <FileSpreadsheet className={`h-4 w-4 shrink-0 ${activeTab === 'reports' ? 'text-[#002438]' : 'text-teal-400'}`} />
+                      <FileSpreadsheet className={`h-4 w-4 shrink-0 ${activeTab === 'reports' ? 'text-white' : 'text-teal-600'}`} />
                       <span className="truncate">Laporan LPJ</span>
                     </button>
                   </nav>
@@ -1053,22 +910,36 @@ export default function App() {
               </div>
 
               {/* PRIMARY NAVIGATION DESKTOP SIDEBAR (DESKTOP ONLY: LG:FLEX) */}
-              <aside className={`hidden lg:flex lg:flex-col shrink-0 bg-[#002438] border border-[#003855] rounded-3xl p-4 shadow-xl shadow-[#003049]/15 text-white justify-between gap-4 no-print transition-all duration-300 ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
+              <aside className={`hidden lg:flex lg:flex-col shrink-0 bg-white border border-slate-200/80 rounded-3xl p-4 shadow-2xs text-slate-800 justify-between gap-4 no-print transition-all duration-300 ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}`}>
                 
-                <div className="space-y-3 min-w-0">
-                  {/* Header Label inside Sidebar with Expand/Collapse Toggle Button */}
-                  <div className={`flex items-center pb-2 border-b border-slate-700/60 min-w-0 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-                    {!isSidebarCollapsed && (
-                      <>
-                        <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          Navigasi Utama
-                        </span>
-                        <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/80 shrink-0 uppercase">
-                          {userRole === 'admin' ? 'Bendahara' : 'Operator'}
-                        </span>
-                      </>
+                <div className="space-y-4 min-w-0">
+                  {/* Brand & Organization Title Block inside Sidebar */}
+                  <div className={`flex items-center pb-3 border-b border-slate-100 min-w-0 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+                    {!isSidebarCollapsed ? (
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-xs">
+                          <Landmark className="h-5 w-5" />
+                        </div>
+                        <div className="text-left min-w-0 flex-1">
+                          <h1 className="text-sm font-bold text-slate-900 tracking-tight truncate max-w-[150px]">
+                            {activeTenant?.name || 'Komite Sekolah'}
+                          </h1>
+                          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500 font-medium">
+                            <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shrink-0">
+                              {activeTenant?.schoolLevel || 'SMP'}
+                            </span>
+                            <span className="font-mono text-slate-400 truncate">
+                              {activeTenant?.id || getActiveTenantId()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-9 w-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0 shadow-xs" title={activeTenant?.name || 'Komite Sekolah'}>
+                        <Landmark className="h-5 w-5" />
+                      </div>
                     )}
+
                     <button
                       type="button"
                       onClick={() => {
@@ -1076,32 +947,65 @@ export default function App() {
                         setIsSidebarCollapsed(next);
                         localStorage.setItem('isSidebarCollapsed', String(next));
                       }}
-                      className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 transition-all cursor-pointer shrink-0"
+                      className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200/80 transition-all cursor-pointer shrink-0"
                       title={isSidebarCollapsed ? "Buka / Perluas Menu Sidebar (Expand)" : "Ciutkan Menu Sidebar (Collapse)"}
                     >
-                      {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4 text-emerald-400" /> : <PanelLeftClose className="w-4 h-4" />}
+                      {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4 text-indigo-600" /> : <PanelLeftClose className="w-4 h-4" />}
                     </button>
                   </div>
+
+                  {/* Academic Year Switcher inside Sidebar */}
+                  {!isSidebarCollapsed ? (
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 px-3 py-2 rounded-xl text-xs text-slate-700 font-bold border border-slate-200/80">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <GraduationCap className="h-4 w-4 text-indigo-600 shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tahun Ajaran</span>
+                      </div>
+                      <select
+                        id="select-academic-year-sidebar"
+                        value={selectedAcademicYear}
+                        onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                        className="bg-transparent text-slate-900 border-none outline-none font-bold text-xs cursor-pointer focus:ring-0 uppercase py-0"
+                      >
+                        {availableAcademicYears.map(yr => (
+                          <option key={yr} value={yr}>TA {yr}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex justify-center" title={`Tahun Ajaran: TA ${selectedAcademicYear}`}>
+                      <div className="p-2 rounded-xl bg-slate-50 text-indigo-600 border border-slate-200/80">
+                        <GraduationCap className="h-4 w-4" />
+                      </div>
+                    </div>
+                  )}
                   
-                  <nav className="flex flex-col gap-2">
+                  <nav className="flex flex-col gap-1.5">
+                    
+                    {!isSidebarCollapsed && (
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 pt-1">
+                        Utama
+                      </span>
+                    )}
+
                     {/* Tab Dashboard */}
                     <button
                       id="nav-dashboard"
                       onClick={() => setActiveTab('dashboard')}
                       title="Ringkasan Utama"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'dashboard' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <LayoutDashboard className={`h-4 w-4 shrink-0 ${activeTab === 'dashboard' ? 'text-[#002438]' : 'text-indigo-400'}`} />
+                        <LayoutDashboard className={`h-4 w-4 shrink-0 ${activeTab === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'}`} />
                         {!isSidebarCollapsed && <span className="truncate">Ringkasan Utama</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'dashboard' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'dashboard' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
 
                     {/* Tab Class Manager */}
@@ -1109,19 +1013,19 @@ export default function App() {
                       id="nav-classes"
                       onClick={() => setActiveTab('classes')}
                       title="Pemetaan Kelas"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'classes' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <Building2 className={`h-4 w-4 shrink-0 ${activeTab === 'classes' ? 'text-[#002438]' : 'text-cyan-400'}`} />
+                        <Building2 className={`h-4 w-4 shrink-0 ${activeTab === 'classes' ? 'text-indigo-600' : 'text-slate-400'}`} />
                         {!isSidebarCollapsed && <span className="truncate">Pemetaan Kelas</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'classes' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'classes' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
 
                     {/* Tab Student Manager */}
@@ -1129,79 +1033,91 @@ export default function App() {
                       id="nav-students"
                       onClick={() => setActiveTab('students')}
                       title="Database Siswa"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'students' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <GraduationCap className={`h-4 w-4 shrink-0 ${activeTab === 'students' ? 'text-[#002438]' : 'text-emerald-400'}`} />
+                        <GraduationCap className={`h-4 w-4 shrink-0 ${activeTab === 'students' ? 'text-indigo-600' : 'text-slate-400'}`} />
                         {!isSidebarCollapsed && <span className="truncate">Database Siswa</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'students' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'students' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
+
+                    {!isSidebarCollapsed && (
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 pt-2">
+                        Keuangan
+                      </span>
+                    )}
 
                     {/* Tab Student Bills Manager */}
                     <button
                       id="nav-iuran"
                       onClick={() => setActiveTab('iuran')}
                       title="Kelola Iuran"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'iuran' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <ClipboardList className={`h-4 w-4 shrink-0 ${activeTab === 'iuran' ? 'text-[#002438]' : 'text-amber-400'}`} />
-                        {!isSidebarCollapsed && <span className="truncate">Kelola Iuran</span>}
+                        <ClipboardList className={`h-4 w-4 shrink-0 ${activeTab === 'iuran' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                        {!isSidebarCollapsed && <span className="truncate">Kelola Iuran Siswa</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'iuran' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'iuran' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
 
-                    {/* Tab Cashflow Ledger */}
+                    {/* Tab Cashflow */}
                     <button
                       id="nav-cashflow"
                       onClick={() => setActiveTab('cashflow')}
                       title="Buku Kas Komite"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'cashflow' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <Coins className={`h-4 w-4 shrink-0 ${activeTab === 'cashflow' ? 'text-[#002438]' : 'text-emerald-400'}`} />
+                        <Coins className={`h-4 w-4 shrink-0 ${activeTab === 'cashflow' ? 'text-indigo-600' : 'text-slate-400'}`} />
                         {!isSidebarCollapsed && <span className="truncate">Buku Kas Komite</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'cashflow' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'cashflow' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
+
+                    {!isSidebarCollapsed && (
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 pt-2">
+                        Program & Advokasi
+                      </span>
+                    )}
 
                     {/* Tab Events planner */}
                     <button
                       id="nav-events"
                       onClick={() => setActiveTab('events')}
                       title="RAB & Program"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'events' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <Target className={`h-4 w-4 shrink-0 ${activeTab === 'events' ? 'text-[#002438]' : 'text-purple-400'}`} />
+                        <Target className={`h-4 w-4 shrink-0 ${activeTab === 'events' ? 'text-indigo-600' : 'text-slate-400'}`} />
                         {!isSidebarCollapsed && <span className="truncate">RAB & Program</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'events' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'events' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
 
                     {/* Tab Notifications */}
@@ -1209,19 +1125,19 @@ export default function App() {
                       id="nav-notifications"
                       onClick={() => setActiveTab('notifications')}
                       title="Advokasi & WA"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'notifications' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <Bell className={`h-4 w-4 shrink-0 ${activeTab === 'notifications' ? 'text-[#002438]' : 'text-sky-400'}`} />
+                        <Bell className={`h-4 w-4 shrink-0 ${activeTab === 'notifications' ? 'text-indigo-600' : 'text-slate-400'}`} />
                         {!isSidebarCollapsed && <span className="truncate">Advokasi & WA</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'notifications' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'notifications' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
 
                     {/* Tab Reports */}
@@ -1229,39 +1145,39 @@ export default function App() {
                       id="nav-reports"
                       onClick={() => setActiveTab('reports')}
                       title="Laporan LPJ"
-                      className={`w-full min-h-[44px] flex items-center transition-all cursor-pointer ${
-                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3.5 py-2.5 rounded-2xl text-xs font-extrabold'
+                      className={`w-full min-h-[42px] flex items-center transition-all cursor-pointer ${
+                        isSidebarCollapsed ? 'justify-center p-2.5 rounded-2xl' : 'justify-between px-3 py-2.5 rounded-2xl text-xs font-bold'
                       } ${
                         activeTab === 'reports' 
-                          ? 'bg-white text-[#002438] shadow-md shadow-black/20 border border-white' 
-                          : 'text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                       }`}
                     >
                       <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                        <FileSpreadsheet className={`h-4 w-4 shrink-0 ${activeTab === 'reports' ? 'text-[#002438]' : 'text-teal-400'}`} />
+                        <FileSpreadsheet className={`h-4 w-4 shrink-0 ${activeTab === 'reports' ? 'text-indigo-600' : 'text-slate-400'}`} />
                         {!isSidebarCollapsed && <span className="truncate">Laporan LPJ</span>}
                       </div>
-                      {!isSidebarCollapsed && activeTab === 'reports' && <div className="w-1.5 h-1.5 rounded-full bg-[#002438] shrink-0" />}
+                      {!isSidebarCollapsed && activeTab === 'reports' && <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                     </button>
                   </nav>
                 </div>
 
                 {/* DB seeder module panel */}
-                <div className={`bg-slate-800/80 border border-slate-700/80 rounded-2xl space-y-3 shadow-inner text-left mt-2 ${isSidebarCollapsed ? 'p-2 flex flex-col items-center justify-center' : 'p-3.5'}`}>
+                <div className={`bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3 text-left mt-2 ${isSidebarCollapsed ? 'p-2 flex flex-col items-center justify-center' : 'p-3.5'}`}>
                   {!isSidebarCollapsed ? (
                     <>
                       <div className="flex items-start gap-2.5">
-                        <Sparkles className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                        <Sparkles className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                         <div className="space-y-0.5 min-w-0">
-                          <span className="text-xs font-extrabold text-slate-100 block">Database Mandiri</span>
-                          <span className="text-[10.5px] text-slate-300 block leading-snug font-medium">
-                            Jika database kosong, pemicu data awal percontohan.
+                          <span className="text-xs font-bold text-slate-800 block">Database Mandiri</span>
+                          <span className="text-[10.5px] text-slate-500 block leading-snug font-medium">
+                            Isi data percontohan jika database kosong.
                           </span>
                         </div>
                       </div>
                       <button
                         onClick={handleTriggerSeed}
-                        className="w-full bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-[11px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 border border-slate-600/80 cursor-pointer shadow-xs active:scale-[0.99]"
+                        className="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold text-[11px] py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 border border-slate-200 cursor-pointer shadow-2xs active:scale-[0.99]"
                       >
                         Isi Data Percontohan
                       </button>
@@ -1270,7 +1186,7 @@ export default function App() {
                     <button
                       onClick={handleTriggerSeed}
                       title="Isi Data Percontohan Demo"
-                      className="p-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-amber-400 transition-all cursor-pointer"
+                      className="p-2 rounded-xl bg-white hover:bg-slate-100 text-amber-500 border border-slate-200 transition-all cursor-pointer"
                     >
                       <Sparkles className="h-4 w-4" />
                     </button>
@@ -1281,9 +1197,9 @@ export default function App() {
               {/* DYNAMIC COMPONENT PANEL CANVAS (RIGHT) */}
               <section className="flex-1 min-w-0">
                 {collectionsLoading ? (
-                  <div className="bg-white border border-gray-100 p-16 rounded-3xl text-center space-y-4">
-                    <div className="animate-spin h-7 w-7 text-emerald-600 border-4 border-emerald-100 border-t-emerald-600 rounded-full mx-auto" />
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Menyinkronkan Data Real-time Dari Firestore...</span>
+                  <div className="bg-white border border-slate-200/80 p-16 rounded-3xl text-center space-y-4 shadow-2xs">
+                    <div className="animate-spin h-7 w-7 text-indigo-600 border-4 border-indigo-100 border-t-indigo-600 rounded-full mx-auto" />
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Menyinkronkan Data Real-time Dari Firestore...</span>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -1294,15 +1210,15 @@ export default function App() {
                       <div className="space-y-6">
                         
                         {/* Welcome Bento Card */}
-                        <div className="bg-gradient-to-br from-white via-[#fdf0d5]/40 to-[#eef5f9] text-slate-900 p-6 sm:p-7 rounded-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm text-left">
+                        <div className="bg-white border border-slate-200/80 text-slate-900 p-6 sm:p-7 rounded-3xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs text-left">
                           <div className="space-y-1 z-10 max-w-xl">
-                            <span className="text-[10px] font-extrabold text-[#780000] uppercase tracking-wider block bg-[#fdf0d5] px-2.5 py-0.5 rounded-full w-max">
+                            <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full w-max">
                               Dashboard Pengawasan Komite
                             </span>
-                            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[#003049] block pt-1">
+                            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 block pt-1">
                               Portal Organisasi Komite Sekolah
                             </h2>
-                            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
                               Mitra independen sekolah: transparansi, akuntabilitas, dan advokasi siswa.
                             </p>
                           </div>
@@ -1311,59 +1227,59 @@ export default function App() {
                             {students.length === 0 && (
                               <button
                                 onClick={handleTriggerSeed}
-                                className="bg-gradient-to-r from-[#003049] to-[#669bbc] hover:opacity-95 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-[#003049]/15 cursor-pointer"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
                               >
                                 Muat Contoh Data Awal
                               </button>
                             )}
                           </div>
                           {/* ambient background blur */}
-                          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-[#669bbc]/15 rounded-full blur-3xl pointer-events-none"></div>
+                          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
                         </div>
 
                         {/* Top stat indicator bars */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                           {/* Saldo Kas */}
-                          <div className="bg-gradient-to-br from-white via-[#f7fafc] to-[#e6f0f6] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                          <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-slate-300">
                             <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
                               <span className="text-xs font-semibold text-slate-500 tracking-wide block truncate">Sisa Saldo Kas</span>
-                              <span className="text-base sm:text-lg lg:text-xl font-black text-[#003049] block font-mono truncate" title={formatIDR(systemDashboardStats.netCash)}>{formatIDR(systemDashboardStats.netCash)}</span>
+                              <span className="text-lg sm:text-xl font-bold text-slate-900 block font-mono truncate" title={formatIDR(systemDashboardStats.netCash)}>{formatIDR(systemDashboardStats.netCash)}</span>
                             </div>
-                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#003049]/10 rounded-2xl flex items-center justify-center text-[#003049] shrink-0 shadow-2xs">
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0 border border-indigo-100">
                               <Coins className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Pemasukan */}
-                          <div className="bg-gradient-to-br from-white via-[#fdf0d5]/30 to-[#f0fdf4] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                          <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-slate-300">
                             <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
-                              <span className="text-xs font-semibold text-emerald-800/80 tracking-wide block truncate">Total Penerimaan</span>
-                              <span className="text-base sm:text-lg lg:text-xl font-black text-emerald-700 block font-mono truncate" title={`+${formatIDR(systemDashboardStats.totalIncome)}`}>+{formatIDR(systemDashboardStats.totalIncome)}</span>
+                              <span className="text-xs font-semibold text-slate-500 tracking-wide block truncate">Total Penerimaan</span>
+                              <span className="text-lg sm:text-xl font-bold text-emerald-600 block font-mono truncate" title={`+${formatIDR(systemDashboardStats.totalIncome)}`}>+{formatIDR(systemDashboardStats.totalIncome)}</span>
                             </div>
-                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-emerald-100/80 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0 shadow-2xs">
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100">
                               <ArrowDownLeft className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Pengeluaran */}
-                          <div className="bg-gradient-to-br from-white via-[#fff5f5] to-[#fde8e8] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                          <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-slate-300">
                             <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
-                              <span className="text-xs font-semibold text-[#780000]/80 tracking-wide block truncate">Total Pengeluaran</span>
-                              <span className="text-base sm:text-lg lg:text-xl font-black text-[#c1121f] block font-mono truncate" title={`-${formatIDR(systemDashboardStats.totalExpense)}`}>-{formatIDR(systemDashboardStats.totalExpense)}</span>
+                              <span className="text-xs font-semibold text-slate-500 tracking-wide block truncate">Total Pengeluaran</span>
+                              <span className="text-lg sm:text-xl font-bold text-rose-600 block font-mono truncate" title={`-${formatIDR(systemDashboardStats.totalExpense)}`}>-{formatIDR(systemDashboardStats.totalExpense)}</span>
                             </div>
-                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#c1121f]/10 rounded-2xl flex items-center justify-center text-[#c1121f] shrink-0 shadow-2xs">
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 shrink-0 border border-rose-100">
                               <ArrowUpRight className="h-5 w-5" />
                             </div>
                           </div>
 
                           {/* Piutang Outstanding */}
-                          <div className="bg-gradient-to-br from-white via-[#fffbeb] to-[#fdf0d5] p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-xs flex items-center justify-between transition-all hover:shadow-sm">
+                          <div className="bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-slate-300">
                             <div className="space-y-0.5 text-left flex-1 min-w-0 pr-2">
-                              <span className="text-xs font-semibold text-amber-900/80 tracking-wide block truncate">Piutang Outstanding</span>
-                              <span className="text-base sm:text-lg lg:text-xl font-black text-amber-800 block font-mono truncate" title={formatIDR(systemDashboardStats.unpaidSum)}>{formatIDR(systemDashboardStats.unpaidSum)}</span>
+                              <span className="text-xs font-semibold text-slate-500 tracking-wide block truncate">Piutang Outstanding</span>
+                              <span className="text-lg sm:text-xl font-bold text-amber-600 block font-mono truncate" title={formatIDR(systemDashboardStats.unpaidSum)}>{formatIDR(systemDashboardStats.unpaidSum)}</span>
                             </div>
-                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-amber-200/60 rounded-2xl flex items-center justify-center text-amber-800 shrink-0 shadow-2xs">
-                              <Bell className="h-5 w-5 animate-bounce" />
+                            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shrink-0 border border-amber-100">
+                              <Bell className="h-5 w-5" />
                             </div>
                           </div>
                         </div>
@@ -1371,10 +1287,10 @@ export default function App() {
                         {/* Bento visual lists & analytics links */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                           {/* Active events panel queue */}
-                          <div className="lg:col-span-7 bg-white/90 backdrop-blur-xs p-6 rounded-3xl space-y-4 shadow-sm text-left">
-                            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100/80">
-                              <h3 className="text-sm font-bold text-[#003049] tracking-tight">Anggaran Kegiatan Komite</h3>
-                              <button onClick={() => setActiveTab('events')} className="text-xs text-[#669bbc] font-bold hover:text-[#003049] transition-colors cursor-pointer shrink-0 whitespace-nowrap">Semua Event →</button>
+                          <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200/80 space-y-4 shadow-2xs text-left">
+                            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                              <h3 className="text-sm font-bold text-slate-900 tracking-tight">Anggaran Kegiatan Komite</h3>
+                              <button onClick={() => setActiveTab('events')} className="text-xs text-indigo-600 font-bold hover:text-indigo-800 transition-colors cursor-pointer shrink-0 whitespace-nowrap">Semua Event →</button>
                             </div>
 
                             <div className="space-y-3">
@@ -1384,16 +1300,16 @@ export default function App() {
                                   : 0;
 
                                 return (
-                                  <div key={evt.id} className="bg-gradient-to-r from-[#f7fafc] to-[#fdf0d5]/40 hover:to-[#fdf0d5]/80 p-4 rounded-2xl transition-all space-y-2 shadow-2xs">
+                                  <div key={evt.id} className="bg-slate-50 hover:bg-slate-100/80 p-4 rounded-2xl border border-slate-100 transition-all space-y-2">
                                     <div className="flex justify-between items-center">
-                                      <span className="text-xs font-extrabold text-slate-800">{evt.title}</span>
-                                      <span className="text-[10px] bg-white font-extrabold px-2 py-0.5 rounded-full uppercase text-[#003049] shadow-2xs">{evt.status}</span>
+                                      <span className="text-xs font-bold text-slate-800">{evt.title}</span>
+                                      <span className="text-[10px] bg-white font-bold px-2 py-0.5 rounded-md uppercase text-indigo-700 border border-slate-200">{evt.status}</span>
                                     </div>
                                     <div className="space-y-1">
-                                      <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
-                                        <div className="bg-gradient-to-r from-[#003049] to-[#669bbc] h-full rounded-full animate-pulse" style={{ width: `${spendRate}%` }}></div>
+                                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                        <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${spendRate}%` }}></div>
                                       </div>
-                                      <div className="flex justify-between text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">
+                                      <div className="flex justify-between text-[9px] text-slate-500 font-bold uppercase tracking-wider">
                                         <span>RAB: {formatIDR(evt.budgetTarget)}</span>
                                         <span>{spendRate}% Terpakai</span>
                                       </div>
@@ -1408,20 +1324,20 @@ export default function App() {
                           </div>
 
                           {/* Dynamic transaction log shortcuts */}
-                          <div className="lg:col-span-5 bg-white/90 backdrop-blur-xs p-6 rounded-3xl space-y-4 shadow-sm text-left">
-                            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100/80">
-                              <h3 className="text-sm font-bold text-[#003049] tracking-tight">Mutasi Keuangan Terkini</h3>
-                              <button onClick={() => setActiveTab('cashflow')} className="text-xs text-[#669bbc] font-bold hover:text-[#003049] transition-colors cursor-pointer shrink-0 whitespace-nowrap">Detail Buku Kas →</button>
+                          <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200/80 space-y-4 shadow-2xs text-left">
+                            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                              <h3 className="text-sm font-bold text-slate-900 tracking-tight">Mutasi Keuangan Terkini</h3>
+                              <button onClick={() => setActiveTab('cashflow')} className="text-xs text-indigo-600 font-bold hover:text-indigo-800 transition-colors cursor-pointer shrink-0 whitespace-nowrap">Detail Buku Kas →</button>
                             </div>
 
                             <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                               {filteredTransactions.slice(0, 4).map(tx => (
-                                <div key={tx.id} className="flex justify-between items-center text-xs p-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-100/80 transition-colors shadow-2xs">
+                                <div key={tx.id} className="flex justify-between items-center text-xs p-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100/80 transition-colors">
                                   <div>
-                                    <span className="font-extrabold text-slate-800 block truncate max-w-[150px]">{tx.category}</span>
-                                    <span className="text-[10px] text-slate-400 font-mono">{tx.date} • {tx.paymentMethod}</span>
+                                    <span className="font-bold text-slate-800 block truncate max-w-[150px]">{tx.category}</span>
+                                    <span className="text-[10px] text-slate-500 font-mono">{tx.date} • {tx.paymentMethod}</span>
                                   </div>
-                                  <span className={`font-black ${tx.type === 'income' ? 'text-emerald-700' : 'text-[#c1121f]'}`}>
+                                  <span className={`font-bold font-mono ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     {tx.type === 'income' ? '+' : '-'} {formatIDR(tx.amount)}
                                   </span>
                                 </div>

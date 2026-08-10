@@ -978,7 +978,7 @@ export default function ClassManager({
                 <div className="space-y-3 min-w-0">
                   <div className="flex items-start justify-between gap-3 min-w-0">
                     <div className="space-y-1 text-left min-w-0 flex-1">
-                      <span className="text-xs font-black text-indigo-700 uppercase tracking-wider bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 inline-block">
+                      <span className="text-xs font-black text-indigo-700 uppercase tracking-wider bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 inline-flex items-center whitespace-nowrap shrink-0">
                         {cls}
                       </span>
                       <h3 className="text-lg font-extrabold text-slate-900 truncate" title={cls}>{cls}</h3>
@@ -1084,10 +1084,10 @@ export default function ClassManager({
         </div>
       ) : (
         /* TABLE VIEW */
-        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-2xs">
+        <div className="bg-white rounded-2xl overflow-hidden shadow-2xs">
           <div className="w-full overflow-x-auto">
             <table className="w-full text-xs text-left text-slate-600">
-              <thead className="bg-[#f8fafc] border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">
+              <thead className="bg-[#f8fafc] text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">
                 <tr>
                   <th className="py-3 px-4">Nama Kelas</th>
                   <th className="py-3 px-4">Wali Kelas</th>
@@ -1097,14 +1097,14 @@ export default function ClassManager({
                   <th className="py-3 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="bg-white">
                 {filteredClasses.map(cls => {
                   const stats = getClassStats(cls);
                   const teacher = classDetailsMap[cls]?.teacher || '-';
                   const korlas = classDetailsMap[cls]?.korlas || '-';
 
                   return (
-                    <tr key={cls} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={cls} className="hover:bg-slate-50/80 border-b border-slate-100/80 transition-colors">
                       <td className="py-3 px-4 font-extrabold text-slate-900">
                         {cls}
                       </td>
@@ -1624,7 +1624,7 @@ export default function ClassManager({
               )}
 
               {/* Roster Table */}
-              <div className="bg-slate-50/50 rounded-2xl overflow-x-auto min-h-[200px] shadow-xs">
+              <div className="bg-slate-50/50 rounded-2xl overflow-x-auto scrollbar-thin pb-1 min-h-[200px] shadow-xs">
                 {(() => {
                   const classStudents = students.filter(s => s.classId === selectedClassForRoster);
                   if (classStudents.length === 0) {
@@ -1648,8 +1648,8 @@ export default function ClassManager({
                   }
 
                   return (
-                    <table className="w-full text-xs text-left text-slate-600">
-                      <thead className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-wider font-extrabold sticky top-0">
+                    <table className="w-full text-xs text-left text-slate-600 min-w-[650px]">
+                      <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase tracking-wider font-extrabold sticky top-0">
                         <tr>
                           <th className="py-3 px-4">No</th>
                           <th className="py-3 px-4">NISN</th>
@@ -1659,13 +1659,13 @@ export default function ClassManager({
                           <th className="py-3 px-4 text-center">Status Iuran (Bulan Ini)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="bg-white">
                         {classStudents.map((s, idx) => {
                           const currentMonthBill = bills.find(b => b.studentId === s.id);
                           const isPaid = currentMonthBill?.status === 'paid';
 
                           return (
-                            <tr key={s.id} className="hover:bg-slate-50">
+                            <tr key={s.id} className="hover:bg-slate-50 border-b border-slate-100/80 transition-colors">
                               <td className="py-3 px-4 text-slate-400 font-mono font-bold">{idx + 1}</td>
                               <td className="py-3 px-4 font-mono font-bold text-slate-800">{s.studentId}</td>
                               <td className="py-3 px-4 font-extrabold text-slate-900">{s.name}</td>
@@ -1673,7 +1673,7 @@ export default function ClassManager({
                               <td className="py-3 px-4 font-mono text-slate-600">{s.parentsPhone || '-'}</td>
                               <td className="py-3 px-4 text-center">
                                 {isPaid ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap shrink-0">
                                     <CheckCircle2 className="h-3 w-3" />
                                     Lunas
                                   </span>
@@ -1681,7 +1681,7 @@ export default function ClassManager({
                                   <button
                                     type="button"
                                     onClick={() => handleOpenPaymentModal(s, currentMonthBill)}
-                                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 hover:shadow-xs transition-all cursor-pointer active:scale-95"
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 hover:shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
                                     title="Klik untuk membuka form pembayaran siswa ini"
                                   >
                                     <CheckCircle2 className="h-3 w-3 text-rose-600" />

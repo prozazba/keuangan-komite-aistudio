@@ -353,7 +353,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       <th className="p-3 text-right">Kredit / Keluar</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 text-slate-800">
+                  <tbody className="text-slate-800 bg-white">
                     <tr>
                       <td className="p-3">02 Mei 2026</td>
                       <td className="p-3 font-semibold text-slate-900">Iuran Bulanan Mei 2026 - Kelas 7-A</td>

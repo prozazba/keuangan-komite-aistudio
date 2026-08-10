@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StudentBill } from '../types';
 import { formatIDR } from '../utils';
 import { 
@@ -41,11 +41,24 @@ export default function NotificationsSim({ bills }: NotificationsSimProps) {
   const classesList = Array.from(new Set(bills.map(b => b.studentClass)));
   const periodsList = Array.from(new Set(bills.map(b => b.period)));
 
+  const [notifPage, setNotifPage] = useState(1);
+  const notifPageSize = 10;
+
+  React.useEffect(() => {
+    setNotifPage(1);
+  }, [filterClass, filterPeriod]);
+
   const filteredBills = overdueBills.filter(b => {
     const classMatch = filterClass === 'All' || b.studentClass === filterClass;
     const periodMatch = filterPeriod === 'All' || b.period === filterPeriod;
     return classMatch && periodMatch;
   });
+
+  const totalNotifPages = Math.ceil(filteredBills.length / notifPageSize) || 1;
+  const paginatedNotifBills = useMemo(() => {
+    const start = (notifPage - 1) * notifPageSize;
+    return filteredBills.slice(start, start + notifPageSize);
+  }, [filteredBills, notifPage]);
 
   // Calculate outstanding balance
   const remainingDues = (bill: StudentBill) => bill.amountRequired - bill.amountPaid;
@@ -184,21 +197,21 @@ Pengurus Komite Sekolah`;
     <div id="notifications-sim-section" className="space-y-6">
       
       {/* Header info */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs">
-        <div className="text-left">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Bell className="h-5 w-5 text-indigo-600" />
-            Notifikasi Pembayaran Wali Murid
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-100 shadow-2xs min-w-0">
+        <div className="text-left min-w-0">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Bell className="h-5 w-5 text-indigo-600 shrink-0" />
+            <span className="truncate">Notifikasi Pembayaran Wali Murid</span>
           </h2>
-          <p className="text-xs text-slate-505 mt-1">
-            Sistem pengiriman pengingat (reminder) otomatis iuran bulanan komite via WhatsApp & Email untuk kemudahan transparansi.
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            Sistem pengiriman pengingat (reminder) otomatis iuran bulanan komite via WhatsApp & Email.
           </p>
         </div>
         <button
           id="btn-send-bulk"
           disabled={isBulkSending || filteredBills.length === 0}
           onClick={handleBulkSendAll}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-xs cursor-pointer"
+          className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all shadow-xs cursor-pointer shrink-0 whitespace-nowrap self-start sm:self-auto"
         >
           {isBulkSending ? (
             <>
@@ -216,15 +229,15 @@ Pengurus Komite Sekolah`;
 
       {/* Bulk delivery progress box */}
       {isBulkSending && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
-          <div className="flex justify-between items-center text-sm">
-            <span className="font-bold text-amber-900 flex items-center gap-1.5">
-              <RefreshCw className="h-4 w-4 animate-spin text-amber-600" />
-              Sistem Auto-Notification Masal Berjalan
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 space-y-3 min-w-0">
+          <div className="flex justify-between items-center text-xs sm:text-sm gap-2">
+            <span className="font-bold text-amber-900 flex items-center gap-1.5 min-w-0 truncate">
+              <RefreshCw className="h-4 w-4 animate-spin text-amber-600 shrink-0" />
+              <span className="truncate">Sistem Auto-Notification Masal Berjalan</span>
             </span>
-            <span className="font-bold text-amber-700">{bulkProgress}% Selesai</span>
+            <span className="font-bold text-amber-700 shrink-0">{bulkProgress}% Selesai</span>
           </div>
-          <div className="text-xs text-gray-600">
+          <div className="text-xs text-gray-600 truncate">
             Mengirim iuran pengingat WhatsApp ke wali murid dari <b>{currentSendingName}</b>...
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -237,19 +250,19 @@ Pengurus Komite Sekolah`;
       )}
 
       {/* Roster & Queue splits */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 min-w-0">
         
         {/* Left pane: Overdue student lists */}
-        <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-100 shadow-2xs overflow-hidden flex flex-col justify-between">
-          <div>
-            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50 text-left">
-              <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase">Daftar Tunggakan Aktif</h3>
+        <div className="xl:col-span-7 bg-white rounded-2xl border border-slate-100 shadow-2xs overflow-hidden flex flex-col justify-between min-w-0">
+          <div className="min-w-0">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50 text-left min-w-0">
+              <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase shrink-0">Daftar Tunggakan Aktif</h3>
               {/* Dynamic Period Dropdowns */}
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <select
                   value={filterClass}
                   onChange={(e) => setFilterClass(e.target.value)}
-                  className="bg-white border border-slate-100 text-xs text-slate-705 font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                  className="bg-white border border-slate-200 text-xs text-slate-700 font-bold rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-3xs"
                 >
                   <option value="All">Semua Kelas</option>
                   {classesList.map(c => <option key={c} value={c}>{c}</option>)}
@@ -257,7 +270,7 @@ Pengurus Komite Sekolah`;
                 <select
                   value={filterPeriod}
                   onChange={(e) => setFilterPeriod(e.target.value)}
-                  className="bg-white border border-slate-100 text-xs text-slate-750 font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                  className="bg-white border border-slate-200 text-xs text-slate-700 font-bold rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-3xs"
                 >
                   <option value="All">Semua Periode</option>
                   {periodsList.map(p => <option key={p} value={p}>{p}</option>)}
@@ -265,52 +278,56 @@ Pengurus Komite Sekolah`;
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-gray-50/30 border-b border-gray-150 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                    <th className="px-5 py-3.5">Nama Siswa / Roster</th>
-                    <th className="px-5 py-3.5">Periode</th>
-                    <th className="px-5 py-3.5 text-right">Tunggakan (Rupiah)</th>
-                    <th className="px-5 py-3.5 text-center">Tindakan Kirim</th>
+            <div className="max-h-[520px] overflow-auto min-w-0 scrollbar-thin pb-1">
+              <table className="w-full text-left text-xs min-w-[500px]">
+                <thead className="sticky top-0 z-10 bg-slate-50 shadow-3xs">
+                  <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                    <th className="px-3 py-2.5 whitespace-nowrap w-5/12 bg-slate-50">Nama Siswa / Wali</th>
+                    <th className="px-2 py-2.5 text-center whitespace-nowrap w-2/12 bg-slate-50">Periode</th>
+                    <th className="px-2 py-2.5 text-right whitespace-nowrap w-2/12 bg-slate-50">Tunggakan</th>
+                    <th className="px-2 py-2.5 text-center whitespace-nowrap w-3/12 bg-slate-50">Aksi Kirim</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-150 text-xs text-gray-700">
-                  {filteredBills.length > 0 ? (
-                    filteredBills.map((bill) => (
+                <tbody className="text-xs text-slate-700 bg-white">
+                  {paginatedNotifBills.length > 0 ? (
+                    paginatedNotifBills.map((bill) => (
                       <tr 
                         key={bill.id} 
                         onClick={() => setSelectedBill(bill)}
-                        className={`hover:bg-amber-50/30 transition-colors cursor-pointer ${selectedBill?.id === bill.id ? 'bg-amber-50/50 font-medium' : ''}`}
+                        className={`border-b border-slate-100/80 hover:bg-amber-50/20 transition-colors cursor-pointer ${selectedBill?.id === bill.id ? 'bg-amber-50/40 font-medium' : ''}`}
                       >
-                        <td className="px-5 py-4">
-                          <div className="font-bold text-gray-900">{bill.studentName}</div>
-                          <span className="text-[10px] text-gray-500">{bill.studentClass} • Wali: {bill.parentsName}</span>
+                        <td className="px-3 py-2.5 min-w-0">
+                          <div className="font-bold text-slate-900 leading-snug truncate max-w-[130px] sm:max-w-[180px]" title={bill.studentName}>
+                            {bill.studentName}
+                          </div>
+                          <div className="text-[10.5px] text-slate-500 mt-0.5 truncate max-w-[130px] sm:max-w-[180px]" title={`${bill.studentClass} • Wali: ${bill.parentsName}`}>
+                            {bill.studentClass} • Wali: {bill.parentsName}
+                          </div>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className="bg-gray-105 font-bold px-1.5 py-0.5 rounded text-gray-600 border border-gray-150">
+                        <td className="px-2 py-2.5 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200/80 whitespace-nowrap shadow-3xs">
                             {bill.period}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-right">
-                          <span className="text-amber-700 font-extrabold text-sm">{formatIDR(remainingDues(bill))}</span>
+                        <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                          <span className="text-amber-800 font-black text-xs font-mono">{formatIDR(remainingDues(bill))}</span>
                         </td>
-                        <td className="px-5 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="px-2 py-2.5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                             <button
                               onClick={() => handleSendSingle(bill, 'WhatsApp')}
-                              className="p-1 px-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded-md border border-emerald-100/50 flex items-center gap-1 transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] rounded-md border border-emerald-200/60 transition-all cursor-pointer shadow-3xs active:scale-95"
                               title="Kirim Peringatan WA"
                             >
-                              <MessageSquare className="h-3 w-3" />
+                              <MessageSquare className="h-3 w-3 shrink-0" />
                               WA
                             </button>
                             <button
                               onClick={() => handleSendSingle(bill, 'Email')}
-                              className="p-1 px-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-md border border-blue-100/50 flex items-center gap-1 transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[10px] rounded-md border border-blue-200/60 transition-all cursor-pointer shadow-3xs active:scale-95"
                               title="Kirim Email"
                             >
-                              <Mail className="h-3 w-3" />
+                              <Mail className="h-3 w-3 shrink-0" />
                               Email
                             </button>
                           </div>
@@ -328,6 +345,33 @@ Pengurus Komite Sekolah`;
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination controls for overdue list */}
+            {totalNotifPages > 1 && (
+              <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-semibold">
+                <div>
+                  Halaman <span className="font-bold text-slate-900">{notifPage}</span> dari {totalNotifPages}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={notifPage === 1}
+                    onClick={() => setNotifPage(prev => Math.max(1, prev - 1))}
+                    className="px-2 py-1 rounded bg-white border border-slate-200 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 text-[11px] font-bold cursor-pointer"
+                  >
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    disabled={notifPage === totalNotifPages}
+                    onClick={() => setNotifPage(prev => Math.min(totalNotifPages, prev + 1))}
+                    className="px-2 py-1 rounded bg-white border border-slate-200 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 text-[11px] font-bold cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-4 bg-gray-50/50 border-t border-gray-150 text-[11px] text-gray-400 text-center font-medium">
@@ -336,17 +380,17 @@ Pengurus Komite Sekolah`;
         </div>
 
         {/* Right pane: Message Preview Container (Simulated Smartphone) */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
+        <div className="xl:col-span-5 flex flex-col gap-6 min-w-0">
           {/* Template Preview Section */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-2xs flex-1 flex flex-col justify-between text-left">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-2xs flex-1 flex flex-col justify-between text-left min-w-0">
             <div>
-              <div className="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center">
-                <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase flex items-center gap-1.5">
+              <div className="border-b border-slate-100 pb-3 mb-4 flex flex-wrap justify-between items-center gap-2">
+                <h3 className="font-bold text-slate-900 text-xs tracking-wider uppercase flex items-center gap-1.5 shrink-0">
                   <Smartphone className="h-4 w-4 text-indigo-600" />
                   Pra-tinjau Notifikasi
                 </h3>
                 {selectedBill && (
-                  <div className="flex gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
+                  <div className="flex gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold shrink-0">
                     <button 
                       onClick={() => setActiveTab('wa')} 
                       className={`px-2 py-1 rounded-md transition-all cursor-pointer text-[11px] ${activeTab === 'wa' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'text-slate-400 font-semibold'}`}
@@ -364,15 +408,15 @@ Pengurus Komite Sekolah`;
               </div>
 
               {selectedBill ? (
-                <div className="space-y-4">
+                <div className="space-y-4 min-w-0">
                   
                   {/* Smartphone message frame */}
                   {activeTab === 'wa' ? (
-                    <div className="bg-slate-100/70 border border-slate-100 rounded-2xl p-3 max-w-sm mx-auto shadow-inner relative font-sans">
+                    <div className="bg-slate-100/70 border border-slate-100 rounded-2xl p-3 max-w-sm mx-auto shadow-inner relative font-sans min-w-0">
                       {/* WhatsApp styled layout header */}
-                      <div className="bg-emerald-600 text-white rounded-t-xl py-2 px-3 text-xs font-bold -mx-3 -mt-3 mb-3 flex items-center justify-between shadow-xs">
-                        <span>+62 {selectedBill.parentsPhone} - Online</span>
-                        <Smartphone className="h-3 w-3" />
+                      <div className="bg-emerald-600 text-white rounded-t-xl py-2 px-3 text-xs font-bold -mx-3 -mt-3 mb-3 flex items-center justify-between shadow-xs gap-2 min-w-0">
+                        <span className="truncate">+62 {selectedBill.parentsPhone} • Online</span>
+                        <Smartphone className="h-3 w-3 shrink-0" />
                       </div>
                       
                       <div className="bg-emerald-50 text-gray-800 rounded-xl p-3 text-xs leading-relaxed max-w-xs ml-auto shadow-xs border border-emerald-100 whitespace-pre-wrap font-mono select-all">

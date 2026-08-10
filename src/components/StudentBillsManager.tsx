@@ -82,6 +82,15 @@ export default function StudentBillsManager({
     }
   }, [academicYearPeriods]);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
+
+  // Reset pagination when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, classFilter, periodFilter, statusFilter]);
+
   // Filter bills list dynamically
   const filteredBills = useMemo(() => {
     return bills.filter(bill => {
@@ -97,6 +106,12 @@ export default function StudentBillsManager({
       return matchesSearch && matchesClass && matchesPeriod && matchesStatus;
     });
   }, [bills, searchQuery, classFilter, periodFilter, statusFilter]);
+
+  const totalPages = Math.ceil(filteredBills.length / pageSize) || 1;
+  const paginatedBills = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredBills.slice(start, start + pageSize);
+  }, [filteredBills, currentPage]);
 
   // High-level statistics calculation
   const billsStats = useMemo(() => {
@@ -837,12 +852,12 @@ export default function StudentBillsManager({
       )}
 
       {/* 6. PRIMARY BILLING RECORDS GRID TABLE */}
-      <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-2xs text-left">
-        <div className="overflow-x-auto min-h-[300px] scrollbar-thin">
-          <table className="w-full text-xs text-left text-slate-600 min-w-[800px]">
-            <thead className="bg-[#f8fafc] border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-wider font-extrabold font-sans">
+      <div className="bg-white rounded-2xl overflow-hidden shadow-2xs text-left min-w-0">
+        <div className="overflow-x-auto min-h-[300px] scrollbar-thin pb-2.5 min-w-0">
+          <table className="w-full text-xs text-left text-slate-600 min-w-[980px]">
+            <thead className="bg-[#f8fafc] text-[10px] text-slate-500 uppercase tracking-wider font-extrabold font-sans">
               <tr className="whitespace-nowrap">
-                <th className="py-3 px-3 w-10 text-center no-print border-r border-slate-100">
+                <th className="py-3 px-3 w-10 text-center no-print">
                   <input
                     type="checkbox"
                     checked={
@@ -864,21 +879,21 @@ export default function StudentBillsManager({
                 <th className="py-3.5 px-3 text-center no-print">Tindakan</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredBills.length > 0 ? (
-                filteredBills.map((bill) => {
+            <tbody className="font-medium">
+              {paginatedBills.length > 0 ? (
+                paginatedBills.map((bill) => {
                   const sisa = bill.amountRequired - bill.amountPaid;
                   const isPaid = bill.status === 'paid';
                   
                   return (
                     <tr 
                       key={bill.id} 
-                      className={`hover:bg-slate-50/70 border-b border-slate-100 transition-colors ${
-                        isPaid ? 'bg-emerald-50/10 text-slate-430' : 'bg-white'
+                      className={`hover:bg-slate-50/70 border-b border-slate-100/80 transition-colors ${
+                        isPaid ? 'bg-emerald-50/10 text-slate-500' : 'bg-white'
                       } ${selectedBillIds.includes(bill.id) ? 'bg-amber-50/30' : ''}`}
                     >
                       {/* Checkbox */}
-                      <td className="py-3 px-4 text-center no-print border-r border-slate-100">
+                      <td className="py-3 px-4 text-center no-print">
                         <input
                           type="checkbox"
                           checked={selectedBillIds.includes(bill.id)}
@@ -890,38 +905,42 @@ export default function StudentBillsManager({
 
                       {/* Student info */}
                       <td className="py-3 px-3">
-                        <div className="space-y-0.5">
-                          <span className="font-extrabold text-slate-900 block font-sans">{bill.studentName}</span>
-                          <span className="font-mono text-[10px] text-slate-400 block font-bold block">{bill.studentId}</span>
+                        <div className="space-y-0.5 min-w-[150px]">
+                          <span className="font-extrabold text-slate-900 block font-sans truncate">{bill.studentName}</span>
+                          <span className="font-mono text-[10px] text-slate-400 font-bold block">{bill.studentId}</span>
                         </div>
                       </td>
 
                       {/* Class */}
-                      <td className="py-3 px-3 font-semibold text-slate-700">{bill.studentClass}</td>
+                      <td className="py-3 px-3 font-semibold text-slate-700 whitespace-nowrap">{bill.studentClass}</td>
 
                       {/* Period */}
-                      <td className="py-3 px-3 font-bold text-indigo-600">{bill.period}</td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100/80 whitespace-nowrap">
+                          {bill.period}
+                        </span>
+                      </td>
 
                       {/* Due Date */}
-                      <td className="py-3 px-3 font-bold text-slate-520 font-mono text-[11px]">{bill.dueDate}</td>
+                      <td className="py-3 px-3 font-bold text-slate-600 font-mono text-[11px] whitespace-nowrap">{bill.dueDate}</td>
 
                       {/* Amount Required */}
-                      <td className="py-3 px-3 text-right font-black text-slate-900 font-mono">{formatIDR(bill.amountRequired)}</td>
+                      <td className="py-3 px-3 text-right font-black text-slate-900 font-mono whitespace-nowrap">{formatIDR(bill.amountRequired)}</td>
 
                       {/* Amount Paid */}
-                      <td className="py-3 px-3 text-right font-black text-emerald-600 font-mono bg-[#fcfdfd]/60">
+                      <td className="py-3 px-3 text-right font-black text-emerald-600 font-mono bg-[#fcfdfd]/60 whitespace-nowrap">
                         {bill.amountPaid > 0 ? `+${formatIDR(bill.amountPaid)}` : formatIDR(0)}
                       </td>
 
                       {/* Sisa */}
-                      <td className={`py-3 px-3 text-right font-black font-mono ${sisa <= 0 ? 'text-slate-400' : 'text-rose-600'}`}>
+                      <td className={`py-3 px-3 text-right font-black font-mono whitespace-nowrap ${sisa <= 0 ? 'text-slate-400' : 'text-rose-600'}`}>
                         {formatIDR(sisa)}
                       </td>
 
                       {/* Status Badges */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         {bill.status === 'paid' && (
-                          <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-150 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                          <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
                             <Check className="h-2.5 w-2.5" /> Lunas
                           </span>
                         )}
@@ -1012,10 +1031,37 @@ export default function StudentBillsManager({
           </table>
         </div>
         
-        {/* Table footer count metadata */}
-        <div className="p-4 border-t border-slate-100 text-[10px] text-slate-500 font-bold bg-[#fafcfd] flex justify-between items-center">
-          <span>Menampilkan {filteredBills.length} dari total {bills.length} data tagihan ({selectedAcademicYear}).</span>
-          <span className="text-indigo-600 block">Aturan Otoritas Enforcing: Firestore Security Rules Secured (ABAC)</span>
+        {/* Table footer count & pagination controls */}
+        <div className="p-3.5 sm:p-4 border-t border-slate-100 text-xs text-slate-600 bg-[#fafcfd] flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div className="text-[11px] font-medium text-slate-500">
+            Menampilkan <span className="font-bold text-slate-800">{filteredBills.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span>-
+            <span className="font-bold text-slate-800">{Math.min(currentPage * pageSize, filteredBills.length)}</span> dari{' '}
+            <span className="font-bold text-slate-800">{filteredBills.length}</span> tagihan terfilter (Total: {bills.length})
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-xs cursor-pointer transition-all shadow-3xs"
+              >
+                Sebelumnya
+              </button>
+              <span className="text-xs font-bold text-slate-700 px-2">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-xs cursor-pointer transition-all shadow-3xs"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

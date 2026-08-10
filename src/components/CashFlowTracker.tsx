@@ -257,6 +257,13 @@ export default function CashFlowTracker({
   };
 
   // Filter Transaction Logic
+  const [txPage, setTxPage] = useState(1);
+  const txPageSize = 15;
+
+  React.useEffect(() => {
+    setTxPage(1);
+  }, [searchQuery, filterType, filterCategory]);
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx => {
       const matchesSearch = tx.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -267,6 +274,12 @@ export default function CashFlowTracker({
       return matchesSearch && matchesType && matchesCategory;
     }).sort((a,b) => b.date.localeCompare(a.date)); // Sort latest first
   }, [transactions, searchQuery, filterType, filterCategory]);
+
+  const totalTxPages = Math.ceil(filteredTransactions.length / txPageSize) || 1;
+  const paginatedTransactions = useMemo(() => {
+    const start = (txPage - 1) * txPageSize;
+    return filteredTransactions.slice(start, start + txPageSize);
+  }, [filteredTransactions, txPage]);
 
   // Aggregate stats
   const aggregateStats = useMemo(() => {
@@ -650,11 +663,11 @@ export default function CashFlowTracker({
       </div>
 
       {/* Ledger Table Section */}
-      <div className="bg-white rounded-2xl border border-gray-150 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left min-w-[760px]">
+      <div className="bg-white rounded-2xl shadow-xs overflow-hidden">
+        <div className="overflow-x-auto scrollbar-thin pb-1">
+          <table className="w-full text-left min-w-[760px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              <tr className="bg-slate-100/70 text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 <th className="px-6 py-4">Tanggal / Waktu</th>
                 <th className="px-6 py-4">Kategori & Bukti</th>
                 <th className="px-6 py-4">Keterangan Transaksi</th>
@@ -663,10 +676,10 @@ export default function CashFlowTracker({
                 <th className="px-6 py-4 text-center">Batalkan</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-              {filteredTransactions.length > 0 ? (
-                filteredTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors">
+            <tbody className="text-sm text-gray-700 bg-white">
+              {paginatedTransactions.length > 0 ? (
+                paginatedTransactions.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-gray-50/50 border-b border-gray-100/80 transition-colors">
                     {/* Date details */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-semibold text-gray-800 flex items-center gap-1.5">
@@ -679,7 +692,7 @@ export default function CashFlowTracker({
                     {/* Category details */}
                     <td className="px-6 py-4">
                       <div className="font-semibold text-gray-900">{tx.category}</div>
-                      <span className="text-xs text-indigo-600 font-bold bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded mt-1 inline-block">
+                      <span className="text-xs text-indigo-600 font-bold bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded mt-1 inline-flex items-center whitespace-nowrap shrink-0">
                         {tx.paymentMethod}
                       </span>
                     </td>
@@ -689,17 +702,17 @@ export default function CashFlowTracker({
                       <p className="text-gray-800 leading-relaxed font-medium">{tx.description}</p>
                       {/* Sub relations tag in transaction row */}
                       {tx.studentId && (
-                        <div className="flex gap-1.5 mt-1.5">
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded inline-flex items-center whitespace-nowrap shrink-0">
                             Iuran: {tx.period}
                           </span>
-                          <span className="text-[10px] bg-gray-100 text-gray-800 font-bold px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] bg-gray-100 text-gray-800 font-bold px-1.5 py-0.5 rounded inline-flex items-center whitespace-nowrap shrink-0">
                             ID: {tx.studentId}
                           </span>
                         </div>
                       )}
                       {tx.eventId && (
-                        <span className="text-[10px] bg-indigo-100 text-indigo-800 font-extrabold px-1.5 py-0.5 rounded mt-1.5 inline-block">
+                        <span className="text-[10px] bg-indigo-100 text-indigo-800 font-extrabold px-1.5 py-0.5 rounded mt-1.5 inline-flex items-center whitespace-nowrap shrink-0">
                           Event Terkait: {events.find(e => e.id === tx.eventId)?.title || 'Program Komite'}
                         </span>
                       )}
@@ -745,13 +758,43 @@ export default function CashFlowTracker({
           </table>
         </div>
 
-        {/* Aggregate summary counts */}
-        <div className="bg-gray-50/50 p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between text-xs text-gray-500 gap-2 font-medium">
-          <div>Menampilkan {filteredTransactions.length} baris transaksi terbaru.</div>
-          <div className="flex gap-4">
-            <span>Pemasukan Terfilter: <span className="text-emerald-600 font-bold">{formatIDR(filteredTransactions.filter(t => t.type==='income').reduce((cur, t)=> cur + t.amount,0))}</span></span>
-            <span>Pengeluaran Terfilter: <span className="text-rose-600 font-bold">{formatIDR(filteredTransactions.filter(t => t.type==='expense').reduce((cur, t)=> cur + t.amount,0))}</span></span>
+        {/* Aggregate summary counts & Pagination Controls */}
+        <div className="bg-gray-50/50 p-3.5 sm:p-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500 gap-3 font-medium">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center">
+            <div>
+              Menampilkan <span className="font-bold text-slate-800">{filteredTransactions.length > 0 ? (txPage - 1) * txPageSize + 1 : 0}</span>-
+              <span className="font-bold text-slate-800">{Math.min(txPage * txPageSize, filteredTransactions.length)}</span> dari{' '}
+              <span className="font-bold text-slate-800">{filteredTransactions.length}</span> transaksi terfilter
+            </div>
+            <div className="flex gap-3">
+              <span>Masuk: <span className="text-emerald-600 font-bold">{formatIDR(filteredTransactions.filter(t => t.type==='income').reduce((cur, t)=> cur + t.amount,0))}</span></span>
+              <span>Keluar: <span className="text-rose-600 font-bold">{formatIDR(filteredTransactions.filter(t => t.type==='expense').reduce((cur, t)=> cur + t.amount,0))}</span></span>
+            </div>
           </div>
+
+          {totalTxPages > 1 && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                disabled={txPage === 1}
+                onClick={() => setTxPage(prev => Math.max(1, prev - 1))}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-xs cursor-pointer transition-all shadow-3xs"
+              >
+                Sebelumnya
+              </button>
+              <span className="text-xs font-bold text-slate-700 px-2">
+                Halaman {txPage} dari {totalTxPages}
+              </span>
+              <button
+                type="button"
+                disabled={txPage === totalTxPages}
+                onClick={() => setTxPage(prev => Math.min(totalTxPages, prev + 1))}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-xs cursor-pointer transition-all shadow-3xs"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

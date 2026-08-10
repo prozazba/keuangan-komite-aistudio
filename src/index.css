@@ -2,100 +2,173 @@
 
 @theme {
   --font-sans: "Ubuntu", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-mono: "Ubuntu Mono", monospace;
   
-  /* Custom Brand Palette */
-  --color-molten-lava: #780000;
-  --color-brick-red: #c1121f;
-  --color-papaya-whip: #fdf0d5;
-  --color-deep-space-blue: #003049;
-  --color-steel-blue: #669bbc;
+  /* Modern Neutral Palette */
+  --color-slate-canvas: #f4f6f9;
 }
 
-/* Typography Base Setup - Maksimal font-weight 400 */
+/* GLOBAL ENFORCED STYLES */
+*, ::before, ::after {
+  font-family: "Ubuntu", sans-serif !important;
+  border: none !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  border-color: transparent !important;
+  max-font-weight: 600;
+}
+
 :root {
-  font-family: "Ubuntu", sans-serif;
-  font-weight: 400;
+  font-family: "Ubuntu", sans-serif !important;
+  color: #0f172a;
+  background-color: #f8fafc;
 }
 
 body {
-  font-family: "Ubuntu", sans-serif;
-  color: #1e293b;
-  font-weight: 400;
+  font-family: "Ubuntu", sans-serif !important;
+  color: #0f172a;
+  background-color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Enforce maximum font-weight 400 across all elements */
-*, ::before, ::after,
-b, strong, h1, h2, h3, h4, h5, h6,
-.font-medium, .font-semibold, .font-bold, .font-extrabold, .font-black {
-  font-weight: 400 !important;
-}
-
-/* Headings use Ubuntu Condensed font family, respecting Tailwind font sizes */
-h1, h2, h3, h4, h5, h6, .title, .font-title {
-  font-family: "Ubuntu Condensed", "Ubuntu", sans-serif;
+/* Headings & Font size cap at 24px max */
+h1, h2, h3, h4, h5, h6, .title, .font-title,
+.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl, .text-6xl, .text-7xl {
+  font-family: "Ubuntu", sans-serif !important;
   letter-spacing: -0.01em;
+  font-size: 24px !important;
+  line-height: 1.25 !important;
 }
 
-/* Numerics / numbers = JetBrains Mono font */
-.font-mono, 
+/* Numerics / numbers font - Ubuntu Mono */
+code, pre, .font-mono, 
 [data-numeric="true"], 
 .numeric, 
 .tabular-nums,
 .number-display {
-  font-family: "JetBrains Mono", monospace;
+  font-family: "Ubuntu Mono", monospace !important;
+}
+
+/* Weight Cap */
+.font-bold, 
+.font-extrabold, 
+.font-black,
+b, 
+strong {
+  font-weight: 600 !important;
+}
+
+/* STRICT SPACING ENFORCEMENT (MAXIMUM 16px GAP/MARGIN/PADDING) */
+
+/* Padding overrides */
+.p-5, .p-6, .p-7, .p-8, .p-9, .p-10, .p-11, .p-12, .p-14, .p-16, .p-20, .p-24, .p-28, .p-32, .p-36, .p-40, .p-48, .p-64 {
+  padding: 16px !important;
+}
+.px-5, .px-6, .px-7, .px-8, .px-9, .px-10, .px-11, .px-12, .px-14, .px-16, .px-20, .px-24, .px-28, .px-32 {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+.py-5, .py-6, .py-7, .py-8, .py-9, .py-10, .py-11, .py-12, .py-14, .py-16, .py-20, .py-24, .py-28, .py-32 {
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+}
+.pt-5, .pt-6, .pt-7, .pt-8, .pt-9, .pt-10, .pt-12, .pt-16, .pt-20, .pt-24 {
+  padding-top: 16px !important;
+}
+.pb-5, .pb-6, .pb-7, .pb-8, .pb-9, .pb-10, .pb-12, .pb-16, .pb-20, .pb-24 {
+  padding-bottom: 16px !important;
+}
+
+/* Margin overrides */
+.m-5, .m-6, .m-7, .m-8, .m-9, .m-10, .m-11, .m-12, .m-14, .m-16, .m-20, .m-24, .m-28, .m-32 {
+  margin: 16px !important;
+}
+.my-5, .my-6, .my-7, .my-8, .my-9, .my-10, .my-12, .my-16, .my-20, .my-24 {
+  margin-top: 16px !important;
+  margin-bottom: 16px !important;
+}
+.mt-5, .mt-6, .mt-7, .mt-8, .mt-9, .mt-10, .mt-12, .mt-16, .mt-20, .mt-24 {
+  margin-top: 16px !important;
+}
+.mb-5, .mb-6, .mb-7, .mb-8, .mb-9, .mb-10, .mb-12, .mb-16, .mb-20, .mb-24 {
+  margin-bottom: 16px !important;
+}
+
+/* Gap & space overrides */
+.gap-5, .gap-6, .gap-7, .gap-8, .gap-9, .gap-10, .gap-11, .gap-12, .gap-14, .gap-16, .gap-20, .gap-24 {
+  gap: 16px !important;
+}
+.gap-x-5, .gap-x-6, .gap-x-7, .gap-x-8, .gap-x-10, .gap-x-12 {
+  column-gap: 16px !important;
+}
+.gap-y-5, .gap-y-6, .gap-y-7, .gap-y-8, .gap-y-10, .gap-y-12 {
+  row-gap: 16px !important;
+}
+
+.space-y-5 > :not([hidden]) ~ :not([hidden]),
+.space-y-6 > :not([hidden]) ~ :not([hidden]),
+.space-y-7 > :not([hidden]) ~ :not([hidden]),
+.space-y-8 > :not([hidden]) ~ :not([hidden]),
+.space-y-9 > :not([hidden]) ~ :not([hidden]),
+.space-y-10 > :not([hidden]) ~ :not([hidden]),
+.space-y-12 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 12px !important;
+}
+
+.space-x-5 > :not([hidden]) ~ :not([hidden]),
+.space-x-6 > :not([hidden]) ~ :not([hidden]),
+.space-x-7 > :not([hidden]) ~ :not([hidden]),
+.space-x-8 > :not([hidden]) ~ :not([hidden]),
+.space-x-10 > :not([hidden]) ~ :not([hidden]) {
+  margin-left: 12px !important;
 }
 
 @layer utilities {
-  /* Soft Gradient Background Utilities */
+  /* Clean Light Canvas Utilities */
   .bg-soft-canvas {
-    background: linear-gradient(135deg, #fdf0d5 0%, #f7fafc 40%, #eef5f9 100%);
+    background-color: #f8fafc;
   }
 
   .bg-soft-card {
-    background: linear-gradient(145deg, #ffffff 0%, #fdf0d5 100%);
-  }
-
-  .bg-soft-card-blue {
-    background: linear-gradient(145deg, #f7fafc 0%, #e6f0f6 100%);
-  }
-
-  .bg-soft-card-red {
-    background: linear-gradient(145deg, #fff7f7 0%, #fdf0d5 100%);
+    background-color: #ffffff;
   }
 
   .bg-header-gradient {
-    background: linear-gradient(135deg, #003049 0%, #00456a 50%, #669bbc 100%);
+    background: #ffffff;
   }
 
-  .bg-primary-btn-gradient {
-    background: linear-gradient(135deg, #003049 0%, #669bbc 100%);
+  /* Custom visible table scrollbar styling */
+  .scrollbar-thin::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
   }
 
-  .bg-accent-red-gradient {
-    background: linear-gradient(135deg, #780000 0%, #c1121f 100%);
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .overflow-x-auto::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 9999px;
   }
 
-  .bg-warm-badge {
-    background-color: #fdf0d5;
-    color: #780000;
+  .scrollbar-thin::-webkit-scrollbar-thumb,
+  .overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
   }
 
-  /* Utility to completely suppress horizontal and vertical scrollbars */
-  .no-scrollbar::-webkit-scrollbar,
-  .scrollbar-none::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+  .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
-  .no-scrollbar,
-  .scrollbar-none {
-    -ms-overflow-style: none !important;
-    scrollbar-width: none !important;
+
+  .scrollbar-thin,
+  .overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
   }
 }
 
-/* Custom styles for official printable report layouts */
+/* Print Styles */
 @media print {
   body {
     background-color: #ffffff !important;
@@ -104,7 +177,6 @@ h1, h2, h3, h4, h5, h6, .title, .font-title {
     padding: 0 !important;
   }
   
-  /* Hide all buttons, navigation sidebars, custom themes, and toggles */
   .no-print, 
   nav, 
   header, 
@@ -117,7 +189,6 @@ h1, h2, h3, h4, h5, h6, .title, .font-title {
     display: none !important;
   }
 
-  /* Expand printable container to full-width without borders or shadow */
   .print-report-container {
     border: none !important;
     box-shadow: none !important;
@@ -132,5 +203,7 @@ h1, h2, h3, h4, h5, h6, .title, .font-title {
     page-break-inside: avoid !important;
   }
 }
+
+
 
 

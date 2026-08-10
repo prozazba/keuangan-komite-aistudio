@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { db, handleFirestoreError, OperationType, collection, doc, deleteDoc, setDoc, updateDoc, writeBatch } from '../firebase';
 import { Student, StudentBill, Transaction, Event } from '../types';
 import { Plus, Trash2, Edit2, UserPlus, CheckCircle2, Search, Filter, RefreshCw, GraduationCap, X, Mail, Phone, User, Clipboard, AlertCircle, Upload, Download, FileText, FileCode, Eye, CreditCard, Coins, Target, ShieldCheck } from 'lucide-react';
@@ -822,6 +822,14 @@ export default function StudentManager({
     }
   };
 
+  // Pagination State for Student List
+  const [studentPage, setStudentPage] = useState(1);
+  const studentPageSize = 15;
+
+  React.useEffect(() => {
+    setStudentPage(1);
+  }, [searchQuery, selectedClass]);
+
   // Filter & Search computation
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -830,6 +838,12 @@ export default function StudentManager({
     const matchesClass = selectedClass === 'All' || student.classId === selectedClass;
     return matchesSearch && matchesClass;
   });
+
+  const totalStudentPages = Math.ceil(filteredStudents.length / studentPageSize) || 1;
+  const paginatedStudents = useMemo(() => {
+    const start = (studentPage - 1) * studentPageSize;
+    return filteredStudents.slice(start, start + studentPageSize);
+  }, [filteredStudents, studentPage]);
 
   return (
     <div id="student-manager-section" className="space-y-6">
@@ -1201,10 +1215,10 @@ export default function StudentManager({
           )}
 
           {/* Interactive Spreadsheet Grid Table */}
-          <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-xs text-slate-700 table-fixed min-w-[900px]">
-                <thead className="bg-slate-100 font-bold text-slate-700 border-b border-slate-100">
+          <div className="rounded-2xl overflow-hidden shadow-2xs bg-slate-50/50">
+            <div className="overflow-x-auto scrollbar-thin pb-1">
+              <table className="w-full text-left text-xs text-slate-700 table-fixed min-w-[900px]">
+                <thead className="bg-slate-100/80 font-bold text-slate-700">
                   <tr>
                     <th className="w-12 px-3 py-3 text-center">Row</th>
                     <th className="w-40 px-3 py-3">NISN (Wajib)*</th>
@@ -1215,7 +1229,7 @@ export default function StudentManager({
                     <th className="w-24 px-3 py-3 text-center">Aksi / Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-150 bg-white">
+                <tbody className="bg-white">
                   {validatedBulkRows.map((row, idx) => {
                     // Check if row has error or is active
                     const isError = !row.isEmpty && !row.isValid;
@@ -1233,7 +1247,7 @@ export default function StudentManager({
                         }`}
                       >
                         {/* Number Indicator */}
-                        <td className="px-3 py-2 text-center text-slate-400 font-semibold border-r border-slate-100">
+                        <td className="px-3 py-2 text-center text-slate-400 font-semibold">
                           #{row.lineNum}
                         </td>
 
@@ -1482,10 +1496,10 @@ export default function StudentManager({
             </h4>
 
             {allStudents.filter(s => (s.academicYear || '2025/2026') === promoSourceYear && s.classId === promoSourceClass).length > 0 ? (
-              <div className="border border-slate-100 rounded-xl overflow-hidden shadow-2xs">
+              <div className="rounded-xl overflow-hidden shadow-2xs bg-slate-50/50">
                 <div className="max-h-64 overflow-y-auto">
                   <table className="w-full text-xs text-left text-slate-600">
-                    <thead className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                    <thead className="bg-slate-100/70 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
                       <tr>
                         <th className="py-2.5 px-4 w-12 text-center">
                           <input
@@ -1507,7 +1521,7 @@ export default function StudentManager({
                         <th className="py-2.5 px-3 text-right">Status di TA {promoDestYear}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
+                    <tbody className="font-medium bg-white">
                       {allStudents
                         .filter(s => (s.academicYear || '2025/2026') === promoSourceYear && s.classId === promoSourceClass)
                         .map((s) => {
@@ -1648,8 +1662,8 @@ export default function StudentManager({
 
       {/* Roster Table Layout */}
       <div className="bg-white/90 backdrop-blur-xs rounded-3xl shadow-sm overflow-hidden text-left">
-        <div className="w-full">
-          <table className="w-full border-collapse text-left">
+        <div className="w-full overflow-x-auto scrollbar-thin pb-1">
+          <table className="w-full text-left min-w-[700px]">
             <thead>
               <tr className="bg-gradient-to-r from-[#f7fafc] to-[#e6f0f6] text-[11px] font-extrabold text-[#003049] uppercase tracking-wider">
                 <th className="px-3.5 py-3">Nama Siswa & NISN</th>
@@ -1659,11 +1673,11 @@ export default function StudentManager({
                 <th className="px-3.5 py-3 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100/60 text-xs text-slate-700">
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => {
+            <tbody className="text-xs text-slate-700">
+              {paginatedStudents.length > 0 ? (
+                paginatedStudents.map((student) => {
                   return (
-                    <tr key={student.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={student.id} className="hover:bg-slate-50/70 border-b border-slate-100/80 transition-colors">
                       <td className="px-3.5 py-3">
                         <div className="font-bold text-slate-900 text-xs">{student.name}</div>
                         <div className="text-[11px] font-mono text-slate-500 mt-0.5">NISN: {student.studentId}</div>
@@ -1750,10 +1764,37 @@ export default function StudentManager({
           </table>
         </div>
         
-        {/* Sum Footer Banner */}
-        <div className="bg-gray-50/50 p-4 border-t border-gray-150 flex flex-col sm:flex-row justify-between text-xs text-gray-500 gap-2 font-medium">
-          <div>Menampilkan {filteredStudents.length} dari total {students.length} siswa terdaftar.</div>
-          <div>Unit Admin Komite Sekolah • Real-time Sync Data Pasif</div>
+        {/* Sum Footer Banner & Pagination */}
+        <div className="bg-gray-50/50 p-3.5 sm:p-4 border-t border-gray-150 flex flex-col sm:flex-row justify-between items-center text-xs text-gray-500 gap-3 font-medium">
+          <div>
+            Menampilkan <span className="font-bold text-slate-800">{filteredStudents.length > 0 ? (studentPage - 1) * studentPageSize + 1 : 0}</span>-
+            <span className="font-bold text-slate-800">{Math.min(studentPage * studentPageSize, filteredStudents.length)}</span> dari{' '}
+            <span className="font-bold text-slate-800">{filteredStudents.length}</span> siswa terfilter (Total: {students.length})
+          </div>
+
+          {totalStudentPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={studentPage === 1}
+                onClick={() => setStudentPage(prev => Math.max(1, prev - 1))}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-xs cursor-pointer transition-all shadow-3xs"
+              >
+                Sebelumnya
+              </button>
+              <span className="text-xs font-bold text-slate-700 px-2">
+                Halaman {studentPage} dari {totalStudentPages}
+              </span>
+              <button
+                type="button"
+                disabled={studentPage === totalStudentPages}
+                onClick={() => setStudentPage(prev => Math.min(totalStudentPages, prev + 1))}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-xs cursor-pointer transition-all shadow-3xs"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1855,7 +1896,7 @@ export default function StudentManager({
                             <th className="py-3 px-4 text-right">Status</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100/70 font-medium bg-white">
+                        <tbody className="font-medium bg-white">
                           {studentBills.map(bill => (
                             <tr key={bill.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="py-3 px-4 font-bold text-slate-800">{bill.period}</td>
@@ -1920,7 +1961,7 @@ export default function StudentManager({
                             <th className="py-3 px-4 text-right">Nominal</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100/70 font-medium bg-white">
+                        <tbody className="font-medium bg-white">
                           {studentTransactions.map(trx => (
                             <tr key={trx.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="py-3 px-4 font-mono text-slate-500 text-[11px]">{trx.date}</td>
