@@ -80,6 +80,19 @@ h1, h2, h3, h4, h5, h6, .title, .font-title {
     background-color: #fdf0d5;
     color: #780000;
   }
+
+  /* Utility to completely suppress horizontal and vertical scrollbars */
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-none::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  .no-scrollbar,
+  .scrollbar-none {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
 }
 
 /* Custom styles for official printable report layouts */
